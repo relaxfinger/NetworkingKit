@@ -1,0 +1,14 @@
+name: Bug report
+description: Tell us what went wrong.
+labels: [bug]
+body:
+  - type: textarea
+    attributes:
+      label: What happened?
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: NetworkingKit version
+    validations:
+      required: true

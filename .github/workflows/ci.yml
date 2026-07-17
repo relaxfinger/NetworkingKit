@@ -1,0 +1,16 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test
+        run: swift test
+      - name: Build demo
+        run: xcodebuild build -project NetworkingKit.xcodeproj -scheme NetworkingKitDemo -sdk iphonesimulator CODE_SIGNING_ALLOWED=NO
