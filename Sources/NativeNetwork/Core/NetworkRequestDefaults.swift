@@ -49,7 +49,7 @@ private func performRequest<Request: NetworkRequest>(_ request: Request) async t
 
 public extension NetworkRequest {
     var headers: [String: String]? { nil }
-    var timeoutInterval: TimeInterval { NetworkConstants.Timeout.defaultInterval }
+    var timeoutInterval: TimeInterval { client.configuration.timeoutInterval }
 
     func buildURLRequest() throws -> URLRequest {
         guard var components = URLComponents(url: client.baseURL.appendingPathComponent(path), resolvingAgainstBaseURL: false) else { throw NetworkError.invalidURL }
@@ -71,11 +71,12 @@ public extension NetworkRequest {
     }
 
     func execute() async throws -> Response {
-        for attempt in NetworkConstants.Retry.firstAttempt...client.retryPolicy.maxAttempts {
+        let retryPolicy = client.configuration.retryPolicy
+        for attempt in NetworkConstants.Retry.firstAttempt...retryPolicy.maxAttempts {
             do { return try await performRequest(self) }
             catch let error as NetworkError {
-                guard attempt < client.retryPolicy.maxAttempts, client.retryPolicy.shouldRetry(error) else { throw error }
-                do { try await Task.sleep(nanoseconds: client.retryPolicy.delayNanoseconds(after: attempt)) }
+                guard attempt < retryPolicy.maxAttempts, retryPolicy.shouldRetry(error) else { throw error }
+                do { try await Task.sleep(nanoseconds: retryPolicy.delayNanoseconds(after: attempt)) }
                 catch { throw NetworkError.cancelled }
             }
         }

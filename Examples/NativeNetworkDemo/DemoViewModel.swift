@@ -49,11 +49,13 @@ final class AppNetworkClient: NetworkClient, @unchecked Sendable {
     let baseURL = URL(string: "https://rickandmortyapi.com")!
     let session: URLSession
     let interceptors: [any NetworkInterceptor] = []
-    let retryPolicy = RetryPolicy(maxAttempts: DemoConstants.retryAttempts)
+    let configuration = NetworkConfiguration(
+        timeoutInterval: DemoConstants.requestTimeout,
+        retryPolicy: RetryPolicy(maxAttempts: DemoConstants.retryAttempts)
+    )
 
     private init() {
         let configuration = URLSessionConfiguration.default
-        configuration.timeoutIntervalForRequest = DemoConstants.requestTimeout
         self.session = URLSession(configuration: configuration)
     }
 }

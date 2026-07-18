@@ -18,7 +18,10 @@ public protocol NetworkClient: AnyObject, Sendable {
     /// 响应 JSON 解码器。可按项目配置日期、key 策略等。
     var decoder: JSONDecoder { get }
     
-    /// 临时服务故障的重试策略。默认不重试。
+    /// 此 Client 实例的默认网络策略。
+    var configuration: NetworkConfiguration { get }
+
+    /// 旧版重试策略入口。新代码请通过 `configuration.retryPolicy` 配置。
     var retryPolicy: RetryPolicy { get }
 }
 
@@ -26,4 +29,5 @@ public extension NetworkClient {
     var encoder: JSONEncoder { JSONEncoder() }
     var decoder: JSONDecoder { JSONDecoder() }
     var retryPolicy: RetryPolicy { .none }
+    var configuration: NetworkConfiguration { NetworkConfiguration(retryPolicy: retryPolicy) }
 }

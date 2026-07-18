@@ -43,7 +43,10 @@ final class AppNetworkClient: NetworkClient, @unchecked Sendable {
     let session: URLSession
     let interceptors: [any NetworkInterceptor] = []
     let decoder: JSONDecoder
-    let retryPolicy = RetryPolicy(maxAttempts: 3)
+    let configuration = NetworkConfiguration(
+        timeoutInterval: 15,
+        retryPolicy: RetryPolicy(maxAttempts: 3)
+    )
     
     private init() {
         let config = URLSessionConfiguration.default
@@ -56,7 +59,7 @@ final class AppNetworkClient: NetworkClient, @unchecked Sendable {
 }
 ```
 
-`RetryPolicy` 默认不重试；只会重试 408、429、5xx 及传输错误。对带副作用的 POST/PUT，请仅在服务端具备幂等键时启用重试。`LoggingInterceptor` 默认不记录 body，并会脱敏 Authorization、Cookie 与 API Key。
+`NetworkConfiguration` 是 Client 实例级默认策略；业务 Request 仍可重写 `timeoutInterval`。`RetryPolicy` 默认不重试；只会重试 408、429、5xx 及传输错误。对带副作用的 POST/PUT，请仅在服务端具备幂等键时启用重试。`LoggingInterceptor` 默认不记录 body，并会脱敏 Authorization、Cookie 与 API Key。
 
 ### 2. App Request 基类（推荐）
 

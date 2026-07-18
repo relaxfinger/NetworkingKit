@@ -72,13 +72,28 @@ final class NativeNetworkTests: XCTestCase {
         XCTAssertEqual(counter.value, 2)
     }
 
-    private func makeClient(retryPolicy: RetryPolicy = .none, handler: @escaping URLProtocolStub.Handler = { request in
+    func testClientConfigurationProvidesDefaultTimeout() throws {
+        let expectedTimeout: TimeInterval = 12
+        let client = makeClient(configuration: NetworkConfiguration(timeoutInterval: expectedTimeout))
+        let request = GetUserRequest(client: client, id: "42")
+
+        XCTAssertEqual(try request.buildURLRequest().timeoutInterval, expectedTimeout)
+    }
+
+    private func makeClient(
+        configuration: NetworkConfiguration? = nil,
+        retryPolicy: RetryPolicy = .none,
+        handler: @escaping URLProtocolStub.Handler = { request in
         (.init(url: try! XCTUnwrap(request.url), statusCode: 200, httpVersion: nil, headerFields: nil)!, Data())
     }) -> TestClient {
         URLProtocolStub.handler = handler
-        let configuration = URLSessionConfiguration.ephemeral
-        configuration.protocolClasses = [URLProtocolStub.self]
-        return TestClient(baseURL: URL(string: "https://example.com/api")!, session: URLSession(configuration: configuration), retryPolicy: retryPolicy)
+        let sessionConfiguration = URLSessionConfiguration.ephemeral
+        sessionConfiguration.protocolClasses = [URLProtocolStub.self]
+        return TestClient(
+            baseURL: URL(string: "https://example.com/api")!,
+            session: URLSession(configuration: sessionConfiguration),
+            configuration: configuration ?? NetworkConfiguration(retryPolicy: retryPolicy)
+        )
     }
 }
 
@@ -117,8 +132,8 @@ private final class TestClient: NetworkClient, @unchecked Sendable {
     let baseURL: URL
     let session: URLSession
     let interceptors: [any NetworkInterceptor] = []
-    let retryPolicy: RetryPolicy
-    init(baseURL: URL, session: URLSession, retryPolicy: RetryPolicy) { self.baseURL = baseURL; self.session = session; self.retryPolicy = retryPolicy }
+    let configuration: NetworkConfiguration
+    init(baseURL: URL, session: URLSession, configuration: NetworkConfiguration) { self.baseURL = baseURL; self.session = session; self.configuration = configuration }
 }
 
 private final class AttemptCounter: @unchecked Sendable {

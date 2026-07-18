@@ -65,5 +65,4 @@ public extension GraphQLRequest {
     var headers: [String: String]? { ["Accept": "application/json", "Content-Type": "application/json"] }
     var variables: [String: AnyEncodable]? { nil }
     var operationName: String? { nil }
-    var timeoutInterval: TimeInterval { NetworkConstants.Timeout.defaultInterval }
 }
