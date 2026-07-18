@@ -1,6 +1,12 @@
 import Foundation
 import Combine
 
+private struct GraphQLBody: Encodable {
+    let query: String
+    let variables: [String: AnyEncodable]?
+    let operationName: String?
+}
+
 // MARK: - NetworkRequest 默认实现
 public extension NetworkRequest {
     
@@ -45,25 +51,8 @@ public extension NetworkRequest {
                 }
             }
         } else if let gql = self as? any GraphQLRequest {
-            var bodyDict: [String: Any] = ["query": gql.query]
-            
-            if let variables = gql.variables {
-                let encoder = JSONEncoder()
-                let data = try encoder.encode(variables)
-                if let dict = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                    bodyDict["variables"] = dict
-                }
-            }
-            
-            if let operationName = gql.operationName {
-                bodyDict["operationName"] = operationName
-            }
-            
-            do {
-                request.httpBody = try JSONSerialization.data(withJSONObject: bodyDict)
-            } catch {
-                throw NetworkError.encodingFailed(error)
-            }
+            do { request.httpBody = try JSONEncoder().encode(GraphQLBody(query: gql.query, variables: gql.variables, operationName: gql.operationName)) }
+            catch { throw NetworkError.encodingFailed(error) }
         }
         
         return request
@@ -78,23 +67,28 @@ public extension NetworkRequest {
             try await interceptor.intercept(&urlRequest)
         }
         
-        let (data, response) = try await client.session.data(for: urlRequest)
+        let data: Data
+        let response: URLResponse
+        do { (data, response) = try await client.session.data(for: urlRequest) }
+        catch { throw NetworkError.transport(error) }
         
         // 执行响应拦截器
         for interceptor in client.interceptors {
             try await interceptor.intercept(response: response, data: data)
         }
         
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw NetworkError.badServerResponse(statusCode: -1)
-        }
+        guard let httpResponse = response as? HTTPURLResponse else { throw NetworkError.nonHTTPResponse }
         
         guard (200...299).contains(httpResponse.statusCode) else {
-            if httpResponse.statusCode == 401 {
-                throw NetworkError.unauthorized
-            }
-            throw NetworkError.badServerResponse(statusCode: httpResponse.statusCode)
+            let headers: [String: String] = Dictionary(uniqueKeysWithValues: httpResponse.allHeaderFields.compactMap { element -> (String, String)? in
+                guard let key = element.key as? String else { return nil }
+                return (key, String(describing: element.value))
+            })
+            if httpResponse.statusCode == 401 { throw NetworkError.unauthorized(headers: headers, body: data) }
+            throw NetworkError.http(statusCode: httpResponse.statusCode, headers: headers, body: data)
         }
+
+        guard !data.isEmpty else { throw NetworkError.emptyResponse }
         
         do {
             return try JSONDecoder().decode(Response.self, from: data)

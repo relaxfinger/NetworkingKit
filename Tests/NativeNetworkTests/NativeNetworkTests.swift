@@ -28,17 +28,33 @@ final class NativeNetworkTests: XCTestCase {
 
     func testExecuteMapsUnauthorizedResponse() async {
         let client = makeClient { request in
-            (.init(url: try! XCTUnwrap(request.url), statusCode: 401, httpVersion: nil, headerFields: nil)!, Data())
+            (.init(url: try! XCTUnwrap(request.url), statusCode: 401, httpVersion: nil, headerFields: ["X-Request-ID": "trace-1"])!, Data())
         }
 
         do {
             let _: User = try await GetUserRequest(client: client, id: "42").execute()
             XCTFail("Expected unauthorized error")
         } catch let error as NetworkError {
-            guard case .unauthorized = error else { return XCTFail("Unexpected error: \(error)") }
+            guard case let .unauthorized(headers, body) = error else { return XCTFail("Unexpected error: \(error)") }
+            XCTAssertEqual(headers["X-Request-ID"], "trace-1")
+            XCTAssertEqual(body, Data())
         } catch {
             XCTFail("Unexpected error: \(error)")
         }
+    }
+
+    func testGraphQLResponseKeepsDataAndErrors() async throws {
+        let client = makeClient { request in
+            XCTAssertEqual(request.value(forHTTPHeaderField: "Content-Type"), "application/json")
+            let json = #"{"data":{"id":"42","name":"Ada"},"errors":[{"message":"partial result","path":["user",0]}]}"#
+            return (.init(url: try! XCTUnwrap(request.url), statusCode: 200, httpVersion: nil, headerFields: nil)!, json.data(using: .utf8)!)
+        }
+
+        let response = try await UserGraphQLRequest(client: client).execute()
+
+        XCTAssertEqual(response.data, User(id: "42", name: "Ada"))
+        XCTAssertEqual(response.errors?.first?.message, "partial result")
+        XCTAssertEqual(response.errors?.first?.path, [.string("user"), .number(0)])
     }
 
     private func makeClient(handler: @escaping URLProtocolStub.Handler = { request in
@@ -74,6 +90,12 @@ private struct CreateUserRequest: RestfulRequest {
     var queryItems: [URLQueryItem]? { [.init(name: "source", value: "test")] }
     var body: Encodable? { CreateUserBody(name: name) }
     var contentType: String? { nil }
+}
+
+private struct UserGraphQLRequest: GraphQLRequest {
+    typealias Response = GraphQLResponse<User>
+    let client: any NetworkClient
+    let query = "query User { user { id name } }"
 }
 
 private final class TestClient: NetworkClient, @unchecked Sendable {

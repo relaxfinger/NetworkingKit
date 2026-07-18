@@ -67,7 +67,7 @@ struct GetUserRequest: RestfulRequest {
 
 ```swift
 struct FetchUserProfileRequest: GraphQLRequest {
-    typealias Response = UserProfile
+    typealias Response = GraphQLResponse<UserProfile>
     let client: any NetworkClient
     let userId: String
     
@@ -95,6 +95,9 @@ struct FetchUserProfileRequest: GraphQLRequest {
 // async/await
 let user = try await GetUserRequest(client: AppNetworkClient.shared, userId: "123").execute()
 let profile = try await FetchUserProfileRequest(client: AppNetworkClient.shared, userId: "123").execute()
+let userProfile = profile.data
+// GraphQL 可以同时返回 data 与 errors；按业务需要处理部分结果。
+let graphQLErrors = profile.errors
 
 // Combine
 GetUserRequest(client: AppNetworkClient.shared, userId: "123").executePublisher()
