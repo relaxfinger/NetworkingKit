@@ -11,6 +11,7 @@ All notable changes to NetworkingKit are documented in this file.
 - Composable in-memory response caching with cache-first and offline cache-only transport policies.
 - Persistent disk cache with `Cache-Control` TTL, ETag validation, and `304 Not Modified` reuse.
 - Circuit-breaking transport to fail fast during repeated upstream failures.
+- Host-scoped certificate pinning and a reusable URLSession trust delegate.
 
 ## 2.0.0 - 2026-07-18
 
