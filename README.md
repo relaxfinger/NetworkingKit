@@ -43,11 +43,7 @@ final class AppNetworkClient: NetworkClient, @unchecked Sendable {
     let session: URLSession
     let interceptors: [any NetworkInterceptor] = []
     let decoder: JSONDecoder
-    let configuration = NetworkConfiguration(
-        timeoutInterval: 15,
-        retryPolicy: RetryPolicy(maxAttempts: 3),
-        errorLocalizer: AppNetworkErrorLocalizer()
-    )
+    let configuration = AppNetworkConfiguration.production
     
     private init() {
         let config = URLSessionConfiguration.default
@@ -61,6 +57,32 @@ final class AppNetworkClient: NetworkClient, @unchecked Sendable {
 ```
 
 `NetworkConfiguration` 是 Client 实例级默认策略；业务 Request 仍可重写 `timeoutInterval`。`RetryPolicy` 默认不重试；只会重试 408、429、5xx 及传输错误。对带副作用的 POST/PUT，请仅在服务端具备幂等键时启用重试。`LoggingInterceptor` 默认不记录 body，并会脱敏 Authorization、Cookie 与 API Key。
+
+### 自定义 `NetworkConfiguration`
+
+将配置集中在 App 层，生产、测试和预发布环境可各自拥有独立的超时、重试及错误本地化策略：
+
+```swift
+enum AppNetworkConfiguration {
+    static let production = NetworkConfiguration(
+        timeoutInterval: 15,
+        retryPolicy: RetryPolicy(maxAttempts: 3),
+        errorLocalizer: AppNetworkErrorLocalizer()
+    )
+
+    static let testing = NetworkConfiguration(
+        timeoutInterval: 3,
+        retryPolicy: .none,
+        errorLocalizer: AppNetworkErrorLocalizer()
+    )
+}
+```
+
+将对应配置赋给各自的 `NetworkClient` 即可；配置是不可变值，不会影响其他 Client：
+
+```swift
+let configuration = AppNetworkConfiguration.production
+```
 
 ### 错误本地化
 

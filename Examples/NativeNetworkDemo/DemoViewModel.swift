@@ -61,17 +61,21 @@ private enum DemoConstants {
 
 // MARK: - App networking layer
 
+private enum AppNetworkConfiguration {
+    static let `default` = NetworkConfiguration(
+        timeoutInterval: DemoConstants.requestTimeout,
+        retryPolicy: RetryPolicy(maxAttempts: DemoConstants.retryAttempts),
+        errorLocalizer: AppNetworkErrorLocalizer()
+    )
+}
+
 final class AppNetworkClient: NetworkClient, @unchecked Sendable {
     static let shared = AppNetworkClient()
 
     let baseURL = URL(string: "https://rickandmortyapi.com")!
     let session: URLSession
     let interceptors: [any NetworkInterceptor] = []
-    let configuration = NetworkConfiguration(
-        timeoutInterval: DemoConstants.requestTimeout,
-        retryPolicy: RetryPolicy(maxAttempts: DemoConstants.retryAttempts),
-        errorLocalizer: AppNetworkErrorLocalizer()
-    )
+    let configuration = AppNetworkConfiguration.default
 
     private init() {
         let configuration = URLSessionConfiguration.default
