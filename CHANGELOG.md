@@ -2,6 +2,12 @@
 
 All notable changes to NetworkingKit are documented in this file.
 
+## 2.2.0 - Unreleased
+
+### Added
+
+- Actor-safe access-token refresh with single-flight coordination and one-time unauthorized request replay.
+
 ## 2.0.0 - 2026-07-18
 
 ### Added

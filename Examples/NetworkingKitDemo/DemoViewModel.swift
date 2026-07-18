@@ -59,8 +59,15 @@ private enum DemoConstants {
     static let requestTimeout: TimeInterval = 15
 }
 
-private enum DemoAuthentication {
-    static let accessToken: String? = nil
+/// Demonstrates the actor-backed token store required by refreshing authentication.
+///
+/// This public API does not require credentials, so the demo returns `nil` values.
+private actor DemoTokenProvider: AccessTokenProviding {
+    static let shared = DemoTokenProvider()
+
+    func accessToken() async -> String? { nil }
+
+    func refreshAccessToken() async throws -> String? { nil }
 }
 
 // MARK: - App networking layer
@@ -78,12 +85,18 @@ final class AppNetworkClient: NetworkClient, @unchecked Sendable {
 
     let baseURL = URL(string: "https://rickandmortyapi.com")!
     let session: URLSession
-    let interceptors: [any NetworkInterceptor] = [
-        DemoCommonHeadersInterceptor(),
-        AuthInterceptor { DemoAuthentication.accessToken },
-        LoggingInterceptor(logBodies: false) { print($0) }
-    ]
     let configuration = AppNetworkConfiguration.default
+    private let refreshingAuthentication = RefreshingAuthInterceptor(provider: DemoTokenProvider.shared)
+
+    var interceptors: [any NetworkInterceptor] {
+        [
+            DemoCommonHeadersInterceptor(),
+            refreshingAuthentication,
+            LoggingInterceptor(logBodies: false) { print($0) }
+        ]
+    }
+
+    var authentication: (any AuthenticationRefreshing)? { refreshingAuthentication }
 
     private init() {
         let configuration = URLSessionConfiguration.default
@@ -120,6 +133,8 @@ struct AppNetworkErrorLocalizer: NetworkErrorLocalizing {
             return String(format: localized("network.error.http_status", locale: locale), statusCode)
         case .unauthorized:
             return localized("network.error.unauthorized", locale: locale)
+        case let .authenticationRefreshFailed(message):
+            return String(format: localized("network.error.interceptor_failed", locale: locale), message)
         case .emptyResponse:
             return localized("network.error.empty_response", locale: locale)
         case let .decodingFailed(message):

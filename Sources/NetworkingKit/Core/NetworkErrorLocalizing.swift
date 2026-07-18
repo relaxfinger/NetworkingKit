@@ -27,6 +27,7 @@ public struct DefaultNetworkErrorLocalizer: NetworkErrorLocalizing {
         case .nonHTTPResponse: return "The server did not return an HTTP response"
         case let .http(statusCode, _, _): return "The server returned HTTP status \(statusCode)"
         case .unauthorized: return "Unauthorized. Please sign in again"
+        case let .authenticationRefreshFailed(message): return "Authentication refresh failed: \(message)"
         case .emptyResponse: return "The server returned an empty response"
         case let .decodingFailed(message): return "Response decoding failed: \(message)"
         case let .encodingFailed(message): return "Request encoding failed: \(message)"

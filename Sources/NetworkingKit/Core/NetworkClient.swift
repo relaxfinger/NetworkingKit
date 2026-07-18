@@ -25,6 +25,11 @@ public protocol NetworkClient: AnyObject, Sendable {
     
     /// The interceptors to run in declaration order.
     var interceptors: [any NetworkInterceptor] { get }
+
+    /// The credential refresher used to replay one unauthorized request.
+    ///
+    /// Set this to the same `RefreshingAuthInterceptor` instance registered in `interceptors`.
+    var authentication: (any AuthenticationRefreshing)? { get }
     
     /// Creates a JSON encoder for one request body.
     ///
@@ -47,6 +52,7 @@ public protocol NetworkClient: AnyObject, Sendable {
 
 public extension NetworkClient {
     var transport: any NetworkTransport { URLSessionTransport(session: session) }
+    var authentication: (any AuthenticationRefreshing)? { nil }
     func makeEncoder() -> JSONEncoder { JSONEncoder() }
     func makeDecoder() -> JSONDecoder { JSONDecoder() }
     var retryPolicy: RetryPolicy { .none }

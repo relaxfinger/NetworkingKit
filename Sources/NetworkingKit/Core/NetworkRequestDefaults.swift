@@ -90,12 +90,30 @@ public extension NetworkRequest {
 
     func execute() async throws -> Response {
         let retryPolicy = client.configuration.retryPolicy
-        for attempt in NetworkConstants.Retry.firstAttempt...retryPolicy.maxAttempts {
+        var hasRefreshedCredentials = false
+        var attempt = NetworkConstants.Retry.firstAttempt
+        while attempt <= retryPolicy.maxAttempts {
             do { return try await performRequest(self) }
             catch let error as NetworkError {
+                if case .unauthorized = error,
+                   !hasRefreshedCredentials,
+                   let authentication = client.authentication {
+                    hasRefreshedCredentials = true
+                    do {
+                        guard try await authentication.refreshCredentials() else {
+                            throw NetworkError.authenticationRefreshFailed(message: "No refreshed access token was returned")
+                        }
+                        continue
+                    } catch let error as NetworkError {
+                        throw error
+                    } catch {
+                        throw NetworkError.authenticationRefreshFailed(message: error.localizedDescription)
+                    }
+                }
                 guard attempt < retryPolicy.maxAttempts, retryPolicy.shouldRetry(error, method: method) else { throw error }
                 do { try await Task.sleep(nanoseconds: retryPolicy.delayNanoseconds(for: error, after: attempt)) }
                 catch { throw NetworkError.cancelled }
+                attempt += 1
             }
         }
         throw NetworkError.invalidRequest

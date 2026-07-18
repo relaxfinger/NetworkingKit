@@ -17,6 +17,7 @@ public enum NetworkError: LocalizedError, Sendable {
     case nonHTTPResponse
     case http(statusCode: Int, headers: [String: String], body: Data)
     case unauthorized(headers: [String: String], body: Data)
+    case authenticationRefreshFailed(message: String)
     case emptyResponse
     case decodingFailed(message: String)
     case encodingFailed(message: String)
