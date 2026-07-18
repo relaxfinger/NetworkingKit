@@ -59,6 +59,10 @@ private enum DemoConstants {
     static let requestTimeout: TimeInterval = 15
 }
 
+private enum DemoAuthentication {
+    static let accessToken: String? = nil
+}
+
 // MARK: - App networking layer
 
 private enum AppNetworkConfiguration {
@@ -75,7 +79,8 @@ final class AppNetworkClient: NetworkClient, @unchecked Sendable {
     let baseURL = URL(string: "https://rickandmortyapi.com")!
     let session: URLSession
     let interceptors: [any NetworkInterceptor] = [
-        DemoRequestHeaderInterceptor(),
+        DemoCommonHeadersInterceptor(),
+        AuthInterceptor { DemoAuthentication.accessToken },
         LoggingInterceptor(logBodies: false) { print($0) }
     ]
     let configuration = AppNetworkConfiguration.default
@@ -86,11 +91,12 @@ final class AppNetworkClient: NetworkClient, @unchecked Sendable {
     }
 }
 
-/// Demonstrates an app-defined interceptor that adds a header to every request.
-struct DemoRequestHeaderInterceptor: NetworkInterceptor {
+/// Demonstrates app-wide request headers configured once on the network client.
+struct DemoCommonHeadersInterceptor: NetworkInterceptor {
     func adapt(_ request: URLRequest) async throws -> URLRequest {
         var request = request
         request.setValue("NetworkingKitDemo", forHTTPHeaderField: "X-Demo-Client")
+        request.setValue("iOS/macOS", forHTTPHeaderField: "X-Client-Platform")
         return request
     }
 }

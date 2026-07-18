@@ -34,6 +34,15 @@ final class NetworkingKitTests: XCTestCase {
         XCTAssertEqual(user, User(id: "42", name: "Ada"))
     }
 
+    func testClientInterceptorAppliesCommonHeaders() async throws {
+        let client = makeClient(interceptors: [CommonHeadersInterceptor()]) { request in
+            XCTAssertEqual(request.value(forHTTPHeaderField: "X-Client-Platform"), "iOS")
+            return (.init(url: try! XCTUnwrap(request.url), statusCode: 200, httpVersion: nil, headerFields: nil)!, #"{"id":"42","name":"Ada"}"#.data(using: .utf8)!)
+        }
+
+        _ = try await GetUserRequest(client: client, id: "42").execute()
+    }
+
     func testExecuteMapsUnauthorizedResponse() async {
         let client = makeClient { request in
             (.init(url: try! XCTUnwrap(request.url), statusCode: 401, httpVersion: nil, headerFields: ["X-Request-ID": "trace-1"])!, Data())
@@ -104,6 +113,7 @@ final class NetworkingKitTests: XCTestCase {
     private func makeClient(
         configuration: NetworkConfiguration? = nil,
         retryPolicy: RetryPolicy = .none,
+        interceptors: [any NetworkInterceptor] = [],
         handler: @escaping URLProtocolStub.Handler = { request in
         (.init(url: try! XCTUnwrap(request.url), statusCode: 200, httpVersion: nil, headerFields: nil)!, Data())
     }) -> TestClient {
@@ -113,6 +123,7 @@ final class NetworkingKitTests: XCTestCase {
         return TestClient(
             baseURL: URL(string: "https://example.com/api")!,
             session: URLSession(configuration: sessionConfiguration),
+            interceptors: interceptors,
             configuration: configuration ?? NetworkConfiguration(retryPolicy: retryPolicy)
         )
     }
@@ -127,6 +138,14 @@ private struct TestNetworkErrorLocalizer: NetworkErrorLocalizing {
         case .unauthorized: return "登录已过期，请重新登录"
         default: return "网络请求失败"
         }
+    }
+}
+
+private struct CommonHeadersInterceptor: NetworkInterceptor {
+    func adapt(_ request: URLRequest) async throws -> URLRequest {
+        var request = request
+        request.setValue("iOS", forHTTPHeaderField: "X-Client-Platform")
+        return request
     }
 }
 
@@ -161,9 +180,14 @@ private struct UserGraphQLRequest: GraphQLRequest {
 private final class TestClient: NetworkClient, @unchecked Sendable {
     let baseURL: URL
     let session: URLSession
-    let interceptors: [any NetworkInterceptor] = []
+    let interceptors: [any NetworkInterceptor]
     let configuration: NetworkConfiguration
-    init(baseURL: URL, session: URLSession, configuration: NetworkConfiguration) { self.baseURL = baseURL; self.session = session; self.configuration = configuration }
+    init(baseURL: URL, session: URLSession, interceptors: [any NetworkInterceptor], configuration: NetworkConfiguration) {
+        self.baseURL = baseURL
+        self.session = session
+        self.interceptors = interceptors
+        self.configuration = configuration
+    }
 }
 
 private final class AttemptCounter: @unchecked Sendable {
