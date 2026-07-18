@@ -47,21 +47,12 @@ final class AppNetworkClient: NetworkClient {
 }
 ```
 
-### 2. 创建基类 Request（推荐）
+### 2. 定义业务 Request
 
 ```swift
-class AppRequest<T: Decodable>: NetworkRequest {
-    typealias Response = T
-    let client: NetworkClient = AppNetworkClient.shared
-}
-```
-
-### 3. 定义业务 Request
-
-#### RESTful 请求
-
-```swift
-struct GetUserRequest: AppRequest<User>, RestfulRequest {
+struct GetUserRequest: RestfulRequest {
+    typealias Response = User
+    let client: any NetworkClient
     let userId: String
     
     var path: String { "/users/\(userId)" }
@@ -72,10 +63,12 @@ struct GetUserRequest: AppRequest<User>, RestfulRequest {
 }
 ```
 
-#### GraphQL 请求
+### 3. GraphQL 请求
 
 ```swift
-struct FetchUserProfileRequest: AppRequest<UserProfile>, GraphQLRequest {
+struct FetchUserProfileRequest: GraphQLRequest {
+    typealias Response = UserProfile
+    let client: any NetworkClient
     let userId: String
     
     var query: String {
@@ -100,11 +93,11 @@ struct FetchUserProfileRequest: AppRequest<UserProfile>, GraphQLRequest {
 
 ```swift
 // async/await
-let user = try await GetUserRequest(userId: "123").execute()
-let profile = try await FetchUserProfileRequest(userId: "123").execute()
+let user = try await GetUserRequest(client: AppNetworkClient.shared, userId: "123").execute()
+let profile = try await FetchUserProfileRequest(client: AppNetworkClient.shared, userId: "123").execute()
 
 // Combine
-GetUserRequest(userId: "123").executePublisher()
+GetUserRequest(client: AppNetworkClient.shared, userId: "123").executePublisher()
     .sink(receiveCompletion: { _ in }, receiveValue: { user in
         print(user)
     })
