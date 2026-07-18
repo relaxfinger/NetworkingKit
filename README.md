@@ -86,16 +86,12 @@ final class AppNetworkClient: NetworkClient, @unchecked Sendable {
 
 ### 2. Add an app request base class
 
-Use a base class to avoid repeating the client in every request. Requests inheriting from a class must also be classes; Swift structures cannot inherit from classes.
+Use a base class to avoid repeating the client in every request. Keep this base class free of `NetworkRequest` conformance so a REST or GraphQL subclass can receive the defaults from its own request protocol. Requests inheriting from a class must also be classes; Swift structures cannot inherit from classes.
 
 ```swift
-class AppRequest<T: Decodable & Sendable>: NetworkRequest, @unchecked Sendable {
+class AppRequest<T: Decodable & Sendable>: @unchecked Sendable {
     typealias Response = T
     let client: any NetworkClient = AppNetworkClient.shared
-
-    var path: String { "" }
-    var method: HTTPMethod { .get }
-    var headers: [String: String]? { nil }
 }
 ```
 
@@ -108,8 +104,8 @@ struct User: Decodable, Sendable {
 }
 
 final class GetUserRequest: AppRequest<User>, RestfulRequest, @unchecked Sendable {
-    override var path: String { "/users/123" }
-    override var method: HTTPMethod { .get }
+    var path: String { "/users/123" }
+    var method: HTTPMethod { .get }
 
     var queryItems: [URLQueryItem]? { nil }
     var body: (any Encodable & Sendable)? { nil }
@@ -131,12 +127,6 @@ struct UserProfile: Decodable, Sendable {
 }
 
 final class FetchUserProfileRequest: AppRequest<GraphQLResponse<UserProfile>>, GraphQLRequest, @unchecked Sendable {
-    override var path: String { "/graphql" }
-    override var method: HTTPMethod { .post }
-    override var headers: [String: String]? {
-        ["Accept": "application/json", "Content-Type": "application/json"]
-    }
-
     var query: String {
         """
         query {
@@ -147,7 +137,7 @@ final class FetchUserProfileRequest: AppRequest<GraphQLResponse<UserProfile>>, G
 }
 ```
 
-`AppRequest` already provides `path`, `method`, and `headers`, so GraphQL requests explicitly override these values to preserve the GraphQL defaults.
+`GraphQLRequest` supplies `/graphql`, `POST`, and JSON `Accept`/`Content-Type` headers by default. Override them only when a GraphQL server uses a different endpoint or request format.
 
 ### 5. Execute requests
 
