@@ -401,6 +401,14 @@ if let networkError = error as? NetworkError,
 
 Open `Examples/NetworkingKitDemo/NetworkingKitDemo.xcodeproj` and run either `NetworkingKitDemo-iOS` or `NetworkingKitDemo-macOS`. The demo contains REST, GraphQL, app-level configuration, a bilingual error localizer, and both built-in and custom interceptors.
 
+## Development
+
+### Public API compatibility
+
+Every pull request compiles `NetworkingKitAPICompatibilityTests`, a representative third-party integration that imports only the public module surface. The fixture covers client setup, REST, GraphQL, caching, route-scoped circuit breaking, observability, retry configuration, and pinning. Treat changes that break this fixture as source-breaking and document them in a major-version migration guide.
+
+`PerformanceTests` also measures JSON decoding and URL request construction. These are regression signals rather than absolute device-performance targets; use them to investigate meaningful changes in hot-path allocations or execution time.
+
 ## License
 
 MIT. See [LICENSE](LICENSE).
