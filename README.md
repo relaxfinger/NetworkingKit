@@ -27,7 +27,7 @@ dependencies: [
 ### 1. 实现自己的 NetworkClient
 
 ```swift
-final class AppNetworkClient: NetworkClient {
+final class AppNetworkClient: NetworkClient, @unchecked Sendable {
     static let shared = AppNetworkClient()
     
     let baseURL = URL(string: "https://api.example.com")!
@@ -58,7 +58,7 @@ struct GetUserRequest: RestfulRequest {
     var path: String { "/users/\(userId)" }
     var method: HTTPMethod { .get }
     var queryItems: [URLQueryItem]? { nil }
-    var body: Encodable? { nil }
+    var body: (any Encodable & Sendable)? { nil }
     var contentType: String? { nil }
 }
 ```

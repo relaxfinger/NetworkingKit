@@ -67,8 +67,8 @@ final class NativeNetworkTests: XCTestCase {
     }
 }
 
-private struct User: Codable, Equatable { let id: String; let name: String }
-private struct CreateUserBody: Codable { let name: String }
+private struct User: Codable, Equatable, Sendable { let id: String; let name: String }
+private struct CreateUserBody: Codable, Sendable { let name: String }
 
 private struct GetUserRequest: RestfulRequest {
     typealias Response = User
@@ -77,7 +77,7 @@ private struct GetUserRequest: RestfulRequest {
     var path: String { "users/\(id)" }
     var method: HTTPMethod { .get }
     var queryItems: [URLQueryItem]? { nil }
-    var body: Encodable? { nil }
+    var body: (any Encodable & Sendable)? { nil }
     var contentType: String? { nil }
 }
 
@@ -88,7 +88,7 @@ private struct CreateUserRequest: RestfulRequest {
     var path: String { "users" }
     var method: HTTPMethod { .post }
     var queryItems: [URLQueryItem]? { [.init(name: "source", value: "test")] }
-    var body: Encodable? { CreateUserBody(name: name) }
+    var body: (any Encodable & Sendable)? { CreateUserBody(name: name) }
     var contentType: String? { nil }
 }
 

@@ -6,7 +6,7 @@ public protocol RestfulRequest: NetworkRequest {
     var queryItems: [URLQueryItem]? { get }
     
     /// 请求体
-    var body: Encodable? { get }
+    var body: (any Encodable & Sendable)? { get }
     
     /// Content-Type（默认为 application/json）
     var contentType: String? { get }

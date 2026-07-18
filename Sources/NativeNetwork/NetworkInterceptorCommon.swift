@@ -6,12 +6,13 @@ import Foundation
 public final class LoggingInterceptor: NetworkInterceptor, @unchecked Sendable {
     public init() {}
     
-    public func intercept(_ request: inout URLRequest) async throws {
+    public func adapt(_ request: URLRequest) async throws -> URLRequest {
         print("🌐 [Request] \(request.httpMethod ?? "UNKNOWN") \(request.url?.absoluteString ?? "")")
         if let body = request.httpBody,
            let bodyString = String(data: body, encoding: .utf8) {
             print("Body: \(bodyString)")
         }
+        return request
     }
     
     public func intercept(response: URLResponse, data: Data) async throws {
@@ -32,9 +33,11 @@ public final class AuthInterceptor: NetworkInterceptor, @unchecked Sendable {
         self.tokenProvider = tokenProvider
     }
     
-    public func intercept(_ request: inout URLRequest) async throws {
+    public func adapt(_ request: URLRequest) async throws -> URLRequest {
+        var request = request
         if let token = tokenProvider() {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
+        return request
     }
 }

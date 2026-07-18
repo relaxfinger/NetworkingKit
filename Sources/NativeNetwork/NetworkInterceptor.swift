@@ -3,8 +3,8 @@ import Foundation
 /// 网络拦截器协议
 /// 可用于 Auth、Logging、Retry、Mock 等场景
 public protocol NetworkInterceptor: Sendable {
-    /// 请求拦截（可修改 URLRequest）
-    func intercept(_ request: inout URLRequest) async throws
+    /// 请求拦截。返回修改后的请求值，避免 async `inout` 跨挂起点。
+    func adapt(_ request: URLRequest) async throws -> URLRequest
     
     /// 响应拦截（可处理响应数据或错误）
     func intercept(response: URLResponse, data: Data) async throws
@@ -12,6 +12,6 @@ public protocol NetworkInterceptor: Sendable {
 
 // MARK: - 默认空实现
 public extension NetworkInterceptor {
-    func intercept(_ request: inout URLRequest) async throws {}
+    func adapt(_ request: URLRequest) async throws -> URLRequest { request }
     func intercept(response: URLResponse, data: Data) async throws {}
 }

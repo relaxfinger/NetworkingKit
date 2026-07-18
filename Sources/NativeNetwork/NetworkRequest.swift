@@ -1,13 +1,13 @@
 import Foundation
-import Combine
+@preconcurrency import Combine
 
 /// 网络请求基础协议
 /// 所有具体请求都应遵循此协议
 public protocol NetworkRequest: Sendable {
-    associatedtype Response: Decodable
+    associatedtype Response: Decodable & Sendable
     
     /// 客户端实例（由 App 基类或具体 Request 提供）
-    var client: NetworkClient { get }
+    var client: any NetworkClient { get }
     
     /// 请求路径（相对于 baseURL）
     var path: String { get }
@@ -23,5 +23,5 @@ public protocol NetworkRequest: Sendable {
     
     // MARK: - 执行方法
     func execute() async throws -> Response
-    func executePublisher() -> AnyPublisher<Response, Error>
+    func executePublisher() -> AnyPublisher<Response, NetworkError>
 }
