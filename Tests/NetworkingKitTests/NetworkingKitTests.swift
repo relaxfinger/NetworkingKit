@@ -89,6 +89,34 @@ final class NetworkingKitTests: XCTestCase {
         XCTAssertEqual(counter.value, 2)
     }
 
+    func testDoesNotRetryPostWithoutExplicitPolicy() async {
+        let counter = AttemptCounter()
+        let client = makeClient(retryPolicy: .init(maxAttempts: 2, initialDelay: 0)) { request in
+            _ = counter.increment()
+            return (.init(url: try! XCTUnwrap(request.url), statusCode: 503, httpVersion: nil, headerFields: nil)!, Data())
+        }
+
+        do {
+            let _: User = try await CreateUserRequest(client: client, name: "Ada").execute()
+            XCTFail("Expected server error")
+        } catch let error as NetworkError {
+            guard case .http = error else { return XCTFail("Unexpected error: \(error)") }
+            XCTAssertEqual(counter.value, 1)
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+    }
+
+    func testEmptyResponseDecodesEmptyResponseType() async throws {
+        let client = makeClient { request in
+            (.init(url: try! XCTUnwrap(request.url), statusCode: 204, httpVersion: nil, headerFields: nil)!, Data())
+        }
+
+        let response = try await DeleteUserRequest(client: client, id: "42").execute()
+
+        XCTAssertEqual(response, EmptyResponse())
+    }
+
     func testClientConfigurationProvidesDefaultTimeout() throws {
         let expectedTimeout: TimeInterval = 12
         let client = makeClient(configuration: NetworkConfiguration(timeoutInterval: expectedTimeout))
@@ -168,6 +196,17 @@ private struct CreateUserRequest: RestfulRequest {
     var method: HTTPMethod { .post }
     var queryItems: [URLQueryItem]? { [.init(name: "source", value: "test")] }
     var body: (any Encodable & Sendable)? { CreateUserBody(name: name) }
+    var contentType: String? { nil }
+}
+
+private struct DeleteUserRequest: RestfulRequest {
+    typealias Response = EmptyResponse
+    let client: any NetworkClient
+    let id: String
+    var path: String { "users/\(id)" }
+    var method: HTTPMethod { .delete }
+    var queryItems: [URLQueryItem]? { nil }
+    var body: (any Encodable & Sendable)? { nil }
     var contentType: String? { nil }
 }
 

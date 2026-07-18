@@ -50,7 +50,10 @@ private func performRequest<Request: NetworkRequest>(_ request: Request) async t
         if httpResponse.statusCode == NetworkConstants.HTTPStatus.unauthorized { throw NetworkError.unauthorized(headers: headers, body: data) }
         throw NetworkError.http(statusCode: httpResponse.statusCode, headers: headers, body: data)
     }
-    guard !data.isEmpty else { throw NetworkError.emptyResponse }
+    guard !data.isEmpty else {
+        guard Request.Response.self == EmptyResponse.self else { throw NetworkError.emptyResponse }
+        return EmptyResponse() as! Request.Response
+    }
     do { return try request.client.decoder.decode(Request.Response.self, from: data) }
     catch { throw NetworkError.decodingFailed(message: error.localizedDescription) }
 }
@@ -83,8 +86,8 @@ public extension NetworkRequest {
         for attempt in NetworkConstants.Retry.firstAttempt...retryPolicy.maxAttempts {
             do { return try await performRequest(self) }
             catch let error as NetworkError {
-                guard attempt < retryPolicy.maxAttempts, retryPolicy.shouldRetry(error) else { throw error }
-                do { try await Task.sleep(nanoseconds: retryPolicy.delayNanoseconds(after: attempt)) }
+                guard attempt < retryPolicy.maxAttempts, retryPolicy.shouldRetry(error, method: method) else { throw error }
+                do { try await Task.sleep(nanoseconds: retryPolicy.delayNanoseconds(for: error, after: attempt)) }
                 catch { throw NetworkError.cancelled }
             }
         }

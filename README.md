@@ -118,6 +118,18 @@ final class GetUserRequest: AppRequest<User>, RestfulRequest, @unchecked Sendabl
 
 For a JSON request body, return any `Encodable & Sendable` value from `body`. The library automatically applies `application/json` unless a request supplies another `contentType`.
 
+For successful endpoints with no response body, such as `204 No Content`, use `EmptyResponse` as the response type.
+
+```swift
+final class DeleteUserRequest: AppRequest<EmptyResponse>, RestfulRequest, @unchecked Sendable {
+    var path: String { "/users/123" }
+    var method: HTTPMethod { .delete }
+    var queryItems: [URLQueryItem]? { nil }
+    var body: (any Encodable & Sendable)? { nil }
+    var contentType: String? { nil }
+}
+```
+
 ### 4. Define a GraphQL request
 
 GraphQL responses retain both partial `data` and server `errors`.
@@ -211,10 +223,14 @@ The included Demo registers `DemoCommonHeadersInterceptor`, `AuthInterceptor`, a
 
 ## Retry behavior
 
-`RetryPolicy` is disabled by default. When enabled, it retries transport errors and HTTP 408, 429, and 5xx responses with exponential backoff. Only retry non-idempotent requests when your backend supports idempotency keys.
+`RetryPolicy` is disabled by default. When enabled, it retries transport errors and HTTP 408, 429, and 5xx responses with capped exponential backoff, jitter, and optional `Retry-After` support. By default, only idempotent methods (`GET`, `HEAD`, `PUT`, `DELETE`, and `OPTIONS`) are retried. Add `POST` explicitly only when the backend supports idempotency keys.
 
 ```swift
 let policy = RetryPolicy(maxAttempts: 3, initialDelay: 0.25, multiplier: 2)
+let idempotentPostPolicy = RetryPolicy(
+    maxAttempts: 3,
+    retryableMethods: [.get, .head, .put, .delete, .options, .post]
+)
 ```
 
 ## Localized errors

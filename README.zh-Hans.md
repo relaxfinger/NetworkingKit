@@ -111,6 +111,18 @@ final class GetUserRequest: AppRequest<User>, RestfulRequest, @unchecked Sendabl
 
 需要 JSON body 时，在 `body` 返回任意 `Encodable & Sendable` 值。未指定时库会自动使用 `application/json`。
 
+对于 `204 No Content` 等成功但无 body 的接口，请使用 `EmptyResponse` 作为响应类型：
+
+```swift
+final class DeleteUserRequest: AppRequest<EmptyResponse>, RestfulRequest, @unchecked Sendable {
+    var path: String { "/users/123" }
+    var method: HTTPMethod { .delete }
+    var queryItems: [URLQueryItem]? { nil }
+    var body: (any Encodable & Sendable)? { nil }
+    var contentType: String? { nil }
+}
+```
+
 ### 4. GraphQL 请求
 
 ```swift
@@ -192,10 +204,14 @@ let interceptors: [any NetworkInterceptor] = [
 
 ## 重试策略
 
-`RetryPolicy` 默认不重试。启用后会对传输错误，以及 HTTP 408、429、5xx 使用指数退避重试。POST、PUT 等有副作用的请求，只有服务端支持幂等键时才建议重试。
+`RetryPolicy` 默认不重试。启用后会对传输错误，以及 HTTP 408、429、5xx 使用带上限的指数退避、jitter 和可选的 `Retry-After` 重试。默认仅重试幂等方法（`GET`、`HEAD`、`PUT`、`DELETE`、`OPTIONS`）。只有服务端支持幂等键时，才应显式将 `POST` 加入可重试方法。
 
 ```swift
 let policy = RetryPolicy(maxAttempts: 3, initialDelay: 0.25, multiplier: 2)
+let idempotentPostPolicy = RetryPolicy(
+    maxAttempts: 3,
+    retryableMethods: [.get, .head, .put, .delete, .options, .post]
+)
 ```
 
 ## 错误本地化
