@@ -8,6 +8,7 @@
 
 import Foundation
 import Security
+import CryptoKit
 
 /// Evaluates a server trust challenge for an app-owned URLSession.
 public protocol ServerTrustEvaluating: Sendable {
@@ -22,6 +23,24 @@ public struct CertificatePinningEvaluator: ServerTrustEvaluating {
         guard let pins = pinnedCertificates[host] else { return true }
         guard SecTrustEvaluateWithError(trust, nil), let certificate = SecTrustCopyCertificateChain(trust) as? [SecCertificate], let leaf = certificate.first else { return false }
         return pins.contains(SecCertificateCopyData(leaf) as Data)
+    }
+}
+
+/// Pins SHA-256 hashes of leaf public-key bytes for selected hosts.
+///
+/// Register both current and backup pins to support certificate rotation without an outage.
+public struct PublicKeyHashPinningEvaluator: ServerTrustEvaluating {
+    public let pinnedHashes: [String: Set<Data>]
+
+    public init(pinnedHashes: [String: Set<Data>]) {
+        self.pinnedHashes = pinnedHashes
+    }
+
+    public func evaluate(_ trust: SecTrust, host: String) -> Bool {
+        guard let pins = pinnedHashes[host] else { return true }
+        guard SecTrustEvaluateWithError(trust, nil), let key = SecTrustCopyKey(trust),
+              let keyData = SecKeyCopyExternalRepresentation(key, nil) as Data? else { return false }
+        return pins.contains(Data(SHA256.hash(data: keyData)))
     }
 }
 
