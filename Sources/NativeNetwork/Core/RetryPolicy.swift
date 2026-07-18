@@ -8,7 +8,9 @@
 
 import Foundation
 
-/// 针对临时故障的指数退避策略。默认不重试，避免在非幂等请求上产生意外副作用。
+/// An exponential backoff policy for transient failures.
+///
+/// It does not retry by default to avoid unexpected side effects for non-idempotent requests.
 public struct RetryPolicy: Sendable {
     public let maxAttempts: Int
     public let initialDelay: TimeInterval

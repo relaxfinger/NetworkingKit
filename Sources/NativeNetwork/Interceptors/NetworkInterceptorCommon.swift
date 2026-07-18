@@ -8,9 +8,11 @@
 
 import Foundation
 
-// MARK: - 常用 Interceptor 示例（可直接使用或参考）
+// MARK: - Common interceptors
 
-/// 默认脱敏且不记录 body 的日志拦截器。生产环境应注入项目自己的统一日志系统。
+/// A logging interceptor that redacts sensitive headers and omits bodies by default.
+///
+/// Production apps should inject their own unified logging system.
 public struct LoggingInterceptor: NetworkInterceptor {
     public var logBodies: Bool
     public var maxBodyLength: Int
@@ -50,7 +52,7 @@ public struct LoggingInterceptor: NetworkInterceptor {
     }
 }
 
-/// 简单 Auth 拦截器示例
+/// A simple interceptor that adds a bearer token to outgoing requests.
 public final class AuthInterceptor: NetworkInterceptor, @unchecked Sendable {
     private let tokenProvider: @Sendable () -> String?
     

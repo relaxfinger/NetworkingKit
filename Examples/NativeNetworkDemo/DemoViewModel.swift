@@ -68,7 +68,7 @@ final class AppNetworkClient: NetworkClient, @unchecked Sendable {
     }
 }
 
-/// 业务请求的 App 基类：统一注入 AppNetworkClient，避免重复传 client。
+/// An app-specific base request that injects `AppNetworkClient` to avoid repeating client setup.
 class AppRequest<T: Decodable & Sendable>: NetworkRequest, @unchecked Sendable {
     typealias Response = T
     let client: any NetworkClient = AppNetworkClient.shared

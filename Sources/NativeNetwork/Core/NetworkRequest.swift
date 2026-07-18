@@ -9,27 +9,26 @@
 import Foundation
 @preconcurrency import Combine
 
-/// 网络请求基础协议
-/// 所有具体请求都应遵循此协议
+/// The base protocol for all network requests.
 public protocol NetworkRequest: Sendable {
     associatedtype Response: Decodable & Sendable
     
-    /// 客户端实例（由 App 基类或具体 Request 提供）
+    /// The client supplied by an app-specific base type or concrete request.
     var client: any NetworkClient { get }
     
-    /// 请求路径（相对于 baseURL）
+    /// The request path relative to the client's base URL.
     var path: String { get }
     
-    /// HTTP 方法
+    /// The HTTP method to use for the request.
     var method: HTTPMethod { get }
     
-    /// 自定义请求头
+    /// Additional HTTP headers for the request.
     var headers: [String: String]? { get }
     
-    /// 超时时间（秒），默认 30
+    /// The request timeout in seconds. Defaults to the client's configured timeout.
     var timeoutInterval: TimeInterval { get }
     
-    // MARK: - 执行方法
+    // MARK: - Execution
     func execute() async throws -> Response
     func executePublisher() -> AnyPublisher<Response, NetworkError>
 }

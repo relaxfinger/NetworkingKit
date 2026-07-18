@@ -8,7 +8,7 @@
 
 import Foundation
 
-/// 支持任意 Encodable 类型的包装，方便 GraphQL variables 使用
+/// A type-erased `Encodable` wrapper for GraphQL variables and other heterogeneous payloads.
 public struct AnyEncodable: Encodable, Sendable {
     private let encodeClosure: @Sendable (Encoder) throws -> Void
     

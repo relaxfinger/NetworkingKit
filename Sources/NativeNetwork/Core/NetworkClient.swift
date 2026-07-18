@@ -8,28 +8,31 @@
 
 import Foundation
 
-/// 网络客户端协议
-/// App 中实现此协议，配置 baseURL、Session、证书校验、公共 Interceptor 等
+/// Describes the network dependencies and defaults owned by an app.
+///
+/// Implement this protocol to configure the base URL, session, certificate validation, and shared interceptors.
 public protocol NetworkClient: AnyObject, Sendable {
-    /// 基础 URL
+    /// The base URL used to resolve request paths.
     var baseURL: URL { get }
     
-    /// URLSession 实例（可自定义配置，包括证书校验）
+    /// The session used to perform requests. Its configuration can include custom certificate validation.
     var session: URLSession { get }
     
-    /// 拦截器列表（按顺序执行）
+    /// The interceptors to run in declaration order.
     var interceptors: [any NetworkInterceptor] { get }
     
-    /// 请求 body 的 JSON 编码器。可按项目配置日期、key 策略等。
+    /// The JSON encoder for request bodies. Configure date and key strategies as needed.
     var encoder: JSONEncoder { get }
     
-    /// 响应 JSON 解码器。可按项目配置日期、key 策略等。
+    /// The JSON decoder for response bodies. Configure date and key strategies as needed.
     var decoder: JSONDecoder { get }
     
-    /// 此 Client 实例的默认网络策略。
+    /// The default network policy for this client instance.
     var configuration: NetworkConfiguration { get }
 
-    /// 旧版重试策略入口。新代码请通过 `configuration.retryPolicy` 配置。
+    /// The legacy retry-policy entry point.
+    ///
+    /// New code should configure retries through `configuration.retryPolicy`.
     var retryPolicy: RetryPolicy { get }
 }
 

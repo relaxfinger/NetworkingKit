@@ -8,7 +8,7 @@
 
 import Foundation
 
-/// HTTP 请求方法
+/// An HTTP request method.
 public enum HTTPMethod: String, Sendable {
     case get = "GET"
     case post = "POST"

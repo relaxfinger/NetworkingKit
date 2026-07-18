@@ -8,14 +8,14 @@
 
 import Foundation
 
-/// RESTful 请求协议
+/// Describes a RESTful network request.
 public protocol RestfulRequest: NetworkRequest {
-    /// Query 参数
+    /// The URL query items to append to the request URL.
     var queryItems: [URLQueryItem]? { get }
     
-    /// 请求体
+    /// The value to encode as the request body.
     var body: (any Encodable & Sendable)? { get }
     
-    /// Content-Type（默认为 application/json）
+    /// The request content type. Defaults to `application/json`.
     var contentType: String? { get }
 }

@@ -8,8 +8,9 @@
 
 import Foundation
 
-/// NativeNetwork 的默认策略与 HTTP 语义常量。
-/// 业务 App 可通过 `NetworkClient`、`RetryPolicy` 或具体 Request 覆盖这些默认值。
+/// Default policies and HTTP semantic constants used by NativeNetwork.
+///
+/// Apps can override these defaults through `NetworkClient`, `RetryPolicy`, or an individual request.
 public enum NetworkConstants {
     public enum Timeout {
         public static let defaultInterval: TimeInterval = 30

@@ -8,7 +8,9 @@
 
 import Foundation
 
-/// 网络层统一错误类型。HTTP 错误保留原始 body 与 headers，便于解析服务端错误和请求追踪 ID。
+/// The unified error type for network operations.
+///
+/// HTTP errors retain the original body and headers for server-error parsing and request-trace correlation.
 public enum NetworkError: LocalizedError, Sendable {
     case invalidURL
     case invalidRequest

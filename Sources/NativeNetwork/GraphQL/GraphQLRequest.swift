@@ -8,7 +8,9 @@
 
 import Foundation
 
-/// GraphQL 标准响应 envelope。GraphQL 允许 `data` 与 `errors` 同时存在，调用方可按业务决定是否采用部分数据。
+/// A standard GraphQL response envelope.
+///
+/// GraphQL permits `data` and `errors` to coexist, allowing callers to decide whether partial data is usable.
 public struct GraphQLResponse<Payload: Decodable & Sendable>: Decodable, Sendable {
     public let data: Payload?
     public let errors: [GraphQLError]?
@@ -19,7 +21,7 @@ public struct GraphQLResponse<Payload: Decodable & Sendable>: Decodable, Sendabl
     }
 }
 
-/// GraphQL 服务返回的业务错误。
+/// An application-level error returned by a GraphQL service.
 public struct GraphQLError: Decodable, Sendable, Equatable {
     public let message: String
     public let locations: [Location]?
@@ -32,7 +34,7 @@ public struct GraphQLError: Decodable, Sendable, Equatable {
     }
 }
 
-/// 可用于 GraphQL error path 与 extensions 的 JSON 值。
+/// A JSON value used by GraphQL error paths and extensions.
 public indirect enum JSONValue: Codable, Sendable, Equatable {
     case string(String), number(Double), boolean(Bool), null
     case array([JSONValue]), object([String: JSONValue])
@@ -60,7 +62,9 @@ public indirect enum JSONValue: Codable, Sendable, Equatable {
     }
 }
 
-/// GraphQL 请求协议。将 Response 声明为 `GraphQLResponse<YourPayload>`。
+/// Describes a GraphQL request.
+///
+/// Declare `Response` as `GraphQLResponse<YourPayload>`.
 public protocol GraphQLRequest: NetworkRequest {
     var query: String { get }
     var variables: [String: AnyEncodable]? { get }
