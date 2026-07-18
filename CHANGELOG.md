@@ -12,6 +12,7 @@ All notable changes to NetworkingKit are documented in this file.
 - Persistent disk cache with `Cache-Control` TTL, ETag validation, and `304 Not Modified` reuse.
 - Circuit-breaking transport to fail fast during repeated upstream failures.
 - Host-scoped certificate pinning and a reusable URLSession trust delegate.
+- OSLog observer and an SDK-agnostic OpenTelemetry event bridge.
 
 ## 2.0.0 - 2026-07-18
 
