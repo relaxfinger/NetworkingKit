@@ -11,18 +11,17 @@ struct ContentView: View {
                     .foregroundStyle(.tint)
 
                 Group {
-                    if let todo = model.todo {
+                    if let character = model.restCharacter {
                         VStack(spacing: 6) {
-                            Text("REST Todo #\(todo.id)").font(.headline)
-                            Text(todo.title).multilineTextAlignment(.center)
-                            Label(todo.completed ? "Completed" : "Open", systemImage: todo.completed ? "checkmark.circle.fill" : "circle")
-                                .foregroundStyle(todo.completed ? .green : .secondary)
+                            Text("REST Character #\(character.id)").font(.headline)
+                            Text(character.name).font(.title3.bold())
+                            Text("\(character.species) · \(character.status)").foregroundStyle(.secondary)
                         }
-                    } else if let character = model.character {
+                    } else if let character = model.graphQLCharacter {
                         VStack(spacing: 6) {
                             Text("GraphQL Character").font(.headline)
                             Text(character.name).font(.title3.bold())
-                            Text(character.species).foregroundStyle(.secondary)
+                            Text("\(character.species) · \(character.status)").foregroundStyle(.secondary)
                         }
                     } else {
                         Text(model.message).foregroundStyle(.secondary)
@@ -32,15 +31,15 @@ struct ContentView: View {
                 .multilineTextAlignment(.center)
 
                 HStack {
-                    Button("Load REST") { model.loadTodo() }
+                    Button("Load REST") { model.loadRESTCharacter() }
                         .buttonStyle(.borderedProminent)
-                    Button("Load GraphQL") { model.loadCharacter() }
+                    Button("Load GraphQL") { model.loadGraphQLCharacter() }
                         .buttonStyle(.bordered)
                 }
 
                 if model.isLoading { ProgressView() }
 
-                Text("NativeNetwork on \(platformName)\nAsync/Await · REST · GraphQL · Retry · Redacted Logging")
+                Text("NativeNetwork on \(platformName)\nAppNetworkClient · AppRequest · REST · GraphQL")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
