@@ -66,6 +66,7 @@ final class AppNetworkClient: NetworkClient, @unchecked Sendable {
     let decoder: JSONDecoder
     let configuration = AppNetworkConfiguration.production
     let interceptors: [any NetworkInterceptor] = [
+        AppCommonHeadersInterceptor(),
         AuthInterceptor { TokenStore.shared.accessToken },
         LoggingInterceptor(logBodies: false) { print($0) }
     ]
@@ -78,7 +79,7 @@ final class AppNetworkClient: NetworkClient, @unchecked Sendable {
 }
 ```
 
-`NetworkConfiguration` 是不可变的 Client 级默认值；单个 Request 仍可覆盖 `timeoutInterval`。
+`NetworkConfiguration` 是不可变的 Client 级默认值；单个 Request 仍可覆盖 `timeoutInterval`。通用 Header、认证、请求签名、日志和埋点应统一在 `interceptors` 中配置，不应放在 `AppRequest`。
 
 ### 2. 创建 App Request 基类
 
@@ -89,7 +90,7 @@ class AppRequest<T: Decodable & Sendable>: @unchecked Sendable {
 }
 ```
 
-采用基类时，业务 Request 也必须是 class，因为 Swift 的 `struct` 不能继承 class。基类不应直接遵循 `NetworkRequest`，以便 REST 或 GraphQL 子类获得其各自协议提供的默认值。
+采用基类时，业务 Request 也必须是 class，因为 Swift 的 `struct` 不能继承 class。基类不应直接遵循 `NetworkRequest`，以便 REST 或 GraphQL 子类获得其各自协议提供的默认值。`AppRequest` 只负责注入 Client 和 Response 类型，不应承载通用 Header、认证或日志；这些跨请求职责属于 `NetworkInterceptor`。
 
 ### 3. REST 请求
 
@@ -169,10 +170,10 @@ LoggingInterceptor(
 
 ### 自定义拦截器
 
-以下示例为每个请求添加业务 Header：
+以下示例为每个请求添加 App 通用 Header，应与认证和日志一起在 `AppNetworkClient.interceptors` 中统一注册：
 
 ```swift
-struct ClientHeaderInterceptor: NetworkInterceptor {
+struct AppCommonHeadersInterceptor: NetworkInterceptor {
     func adapt(_ request: URLRequest) async throws -> URLRequest {
         var request = request
         request.setValue("iOS", forHTTPHeaderField: "X-Client-Platform")
@@ -181,13 +182,13 @@ struct ClientHeaderInterceptor: NetworkInterceptor {
 }
 
 let interceptors: [any NetworkInterceptor] = [
-    ClientHeaderInterceptor(),
+    AppCommonHeadersInterceptor(),
     AuthInterceptor { TokenStore.shared.accessToken },
     LoggingInterceptor(logBodies: false)
 ]
 ```
 
-仓库 Demo 已实际注册 `DemoRequestHeaderInterceptor` 与 `LoggingInterceptor`，运行请求时可在 Xcode 控制台看到日志。
+仓库 Demo 已实际注册 `DemoCommonHeadersInterceptor`、`AuthInterceptor` 与 `LoggingInterceptor`，通用行为在 Client 统一配置，运行请求时可在 Xcode 控制台看到日志。
 
 ## 重试策略
 

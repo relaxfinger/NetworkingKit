@@ -68,6 +68,7 @@ final class AppNetworkClient: NetworkClient, @unchecked Sendable {
     let decoder: JSONDecoder
     let configuration = AppNetworkConfiguration.production
     let interceptors: [any NetworkInterceptor] = [
+        AppCommonHeadersInterceptor(),
         AuthInterceptor { TokenStore.shared.accessToken },
         LoggingInterceptor(logBodies: false) { print($0) }
     ]
@@ -82,11 +83,13 @@ final class AppNetworkClient: NetworkClient, @unchecked Sendable {
 }
 ```
 
-`NetworkConfiguration` is immutable and scoped to one client. A request can still override `timeoutInterval` when a specific endpoint needs a different timeout.
+`NetworkConfiguration` is immutable and scoped to one client. A request can still override `timeoutInterval` when a specific endpoint needs a different timeout. Configure app-wide headers, authentication, request signing, logging, and metrics in `interceptors`; do not add them to `AppRequest`.
 
 ### 2. Add an app request base class
 
 Use a base class to avoid repeating the client in every request. Keep this base class free of `NetworkRequest` conformance so a REST or GraphQL subclass can receive the defaults from its own request protocol. Requests inheriting from a class must also be classes; Swift structures cannot inherit from classes.
+
+`AppRequest` is intentionally limited to client and response-type injection. It should not own common headers, authentication, or logging because those responsibilities apply to every request and belong to `NetworkInterceptor`.
 
 ```swift
 class AppRequest<T: Decodable & Sendable>: @unchecked Sendable {
@@ -186,10 +189,10 @@ LoggingInterceptor(
 
 ### Custom interceptor
 
-This interceptor adds an application header to every request:
+This interceptor adds application-wide headers to every request. Register it once on `AppNetworkClient.interceptors`, alongside authentication and logging:
 
 ```swift
-struct ClientHeaderInterceptor: NetworkInterceptor {
+struct AppCommonHeadersInterceptor: NetworkInterceptor {
     func adapt(_ request: URLRequest) async throws -> URLRequest {
         var request = request
         request.setValue("iOS", forHTTPHeaderField: "X-Client-Platform")
@@ -198,13 +201,13 @@ struct ClientHeaderInterceptor: NetworkInterceptor {
 }
 
 let interceptors: [any NetworkInterceptor] = [
-    ClientHeaderInterceptor(),
+    AppCommonHeadersInterceptor(),
     AuthInterceptor { TokenStore.shared.accessToken },
     LoggingInterceptor(logBodies: false)
 ]
 ```
 
-The included Demo registers both `DemoRequestHeaderInterceptor` and `LoggingInterceptor`, so the behavior is visible in the Xcode console while requests run.
+The included Demo registers `DemoCommonHeadersInterceptor`, `AuthInterceptor`, and `LoggingInterceptor`, so app-wide behavior is configured on the client rather than repeated in request types.
 
 ## Retry behavior
 
