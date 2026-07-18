@@ -32,6 +32,47 @@ private func performRequest<Request: NetworkRequest>(_ request: Request) async t
     do { for interceptor in request.client.interceptors { urlRequest = try await interceptor.adapt(urlRequest) } }
     catch { throw NetworkError.interceptorFailed(message: error.localizedDescription) }
 
+    let requestID = urlRequest.value(forHTTPHeaderField: "X-Request-ID") ?? UUID().uuidString
+    let context = NetworkRequestContext(id: requestID, method: request.method, url: urlRequest.url ?? request.client.baseURL)
+    let startedAt = Date()
+    await notify(.started(context), for: request.client)
+    if let controller = request.client.executionController { await controller.acquire() }
+
+    do {
+        let result = try await executeAdaptedRequest(request, urlRequest: urlRequest)
+        if let controller = request.client.executionController { await controller.release() }
+        await notify(
+            .finished(context, NetworkRequestOutcome(statusCode: result.statusCode, duration: Date().timeIntervalSince(startedAt), error: nil)),
+            for: request.client
+        )
+        return result.response
+    } catch let error as NetworkError {
+        if let controller = request.client.executionController { await controller.release() }
+        await notify(
+            .finished(context, NetworkRequestOutcome(statusCode: error.statusCode, duration: Date().timeIntervalSince(startedAt), error: error)),
+            for: request.client
+        )
+        throw error
+    } catch {
+        if let controller = request.client.executionController { await controller.release() }
+        let networkError = NetworkError.transport(message: error.localizedDescription)
+        await notify(
+            .finished(context, NetworkRequestOutcome(statusCode: nil, duration: Date().timeIntervalSince(startedAt), error: networkError)),
+            for: request.client
+        )
+        throw networkError
+    }
+}
+
+private func notify(_ event: NetworkEvent, for client: any NetworkClient) async {
+    for observer in client.observers { await observer.record(event) }
+}
+
+private func executeAdaptedRequest<Request: NetworkRequest>(
+    _ request: Request,
+    urlRequest: URLRequest
+) async throws -> (response: Request.Response, statusCode: Int?) {
+
     let data: Data
     let response: URLResponse
     do { (data, response) = try await request.client.transport.send(urlRequest) }
@@ -59,9 +100,9 @@ private func performRequest<Request: NetworkRequest>(_ request: Request) async t
     }
     guard !transformedData.isEmpty else {
         guard Request.Response.self == EmptyResponse.self else { throw NetworkError.emptyResponse }
-        return EmptyResponse() as! Request.Response
+        return (EmptyResponse() as! Request.Response, httpResponse.statusCode)
     }
-    do { return try request.client.makeDecoder().decode(Request.Response.self, from: transformedData) }
+    do { return (try request.client.makeDecoder().decode(Request.Response.self, from: transformedData), httpResponse.statusCode) }
     catch { throw NetworkError.decodingFailed(message: error.localizedDescription) }
 }
 

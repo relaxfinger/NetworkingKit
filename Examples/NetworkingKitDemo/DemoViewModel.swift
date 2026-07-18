@@ -90,6 +90,7 @@ final class AppNetworkClient: NetworkClient, @unchecked Sendable {
 
     var interceptors: [any NetworkInterceptor] {
         [
+            RequestIDInterceptor(),
             DemoCommonHeadersInterceptor(),
             refreshingAuthentication,
             LoggingInterceptor(logBodies: false) { print($0) }
@@ -97,6 +98,8 @@ final class AppNetworkClient: NetworkClient, @unchecked Sendable {
     }
 
     var authentication: (any AuthenticationRefreshing)? { refreshingAuthentication }
+    let observers: [any NetworkObserving] = [DemoNetworkObserver()]
+    let executionController: (any NetworkExecutionControlling)? = RequestConcurrencyLimiter(maximumConcurrentRequests: 4)
 
     private init() {
         let configuration = URLSessionConfiguration.default
@@ -107,6 +110,19 @@ final class AppNetworkClient: NetworkClient, @unchecked Sendable {
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         return decoder
+    }
+}
+
+/// Sends request lifecycle events to the Demo console without affecting request execution.
+actor DemoNetworkObserver: NetworkObserving {
+    func record(_ event: NetworkEvent) async {
+        switch event {
+        case let .started(context):
+            print("📡 [\(context.id)] \(context.method.rawValue) \(context.url.absoluteString)")
+        case let .finished(context, outcome):
+            let status = outcome.statusCode.map(String.init) ?? "transport"
+            print("📊 [\(context.id)] \(status) in \(String(format: "%.3f", outcome.duration))s")
+        }
     }
 }
 

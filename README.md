@@ -84,6 +84,7 @@ final class AppNetworkClient: NetworkClient, @unchecked Sendable {
 
     var interceptors: [any NetworkInterceptor] {
         [
+            RequestIDInterceptor(),
             AppCommonHeadersInterceptor(),
             refreshingAuthentication,
             LoggingInterceptor(logBodies: false) { print($0) }
@@ -91,6 +92,8 @@ final class AppNetworkClient: NetworkClient, @unchecked Sendable {
     }
 
     var authentication: (any AuthenticationRefreshing)? { refreshingAuthentication }
+    let observers: [any NetworkObserving] = [AppNetworkObserver()]
+    let executionController: (any NetworkExecutionControlling)? = RequestConcurrencyLimiter(maximumConcurrentRequests: 6)
 
     private init() {
         let sessionConfiguration = URLSessionConfiguration.default
@@ -219,6 +222,25 @@ struct StubTransport: NetworkTransport {
 
 let transport: any NetworkTransport = StubTransport()
 ```
+
+### Observability and execution controls
+
+Add `RequestIDInterceptor()` to propagate an `X-Request-ID` value. `NetworkObserving` receives start and finish events for every transport attempt, including status, duration, and a structured `NetworkError` when one occurs. Implement it with an actor to forward data to OSLog, OpenTelemetry, or your telemetry service without blocking requests.
+
+```swift
+actor AppNetworkObserver: NetworkObserving {
+    func record(_ event: NetworkEvent) async {
+        switch event {
+        case let .started(context):
+            AppLogger.network.info("Started \(context.id)")
+        case let .finished(context, outcome):
+            AppLogger.network.info("Finished \(context.id), status: \(outcome.statusCode ?? 0)")
+        }
+    }
+}
+```
+
+Use `RequestConcurrencyLimiter` as the client’s `executionController` to cap simultaneous transport attempts. Retries and one-time authentication replays each count as an attempt, which prevents failure storms from exhausting device or backend resources.
 
 ### Built-in interceptors
 

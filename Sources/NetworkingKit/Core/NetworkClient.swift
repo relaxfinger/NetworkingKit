@@ -30,6 +30,12 @@ public protocol NetworkClient: AnyObject, Sendable {
     ///
     /// Set this to the same `RefreshingAuthInterceptor` instance registered in `interceptors`.
     var authentication: (any AuthenticationRefreshing)? { get }
+
+    /// Observers that receive non-blocking lifecycle events for every transport attempt.
+    var observers: [any NetworkObserving] { get }
+
+    /// An optional controller for limiting concurrent transport attempts.
+    var executionController: (any NetworkExecutionControlling)? { get }
     
     /// Creates a JSON encoder for one request body.
     ///
@@ -53,6 +59,8 @@ public protocol NetworkClient: AnyObject, Sendable {
 public extension NetworkClient {
     var transport: any NetworkTransport { URLSessionTransport(session: session) }
     var authentication: (any AuthenticationRefreshing)? { nil }
+    var observers: [any NetworkObserving] { [] }
+    var executionController: (any NetworkExecutionControlling)? { nil }
     func makeEncoder() -> JSONEncoder { JSONEncoder() }
     func makeDecoder() -> JSONDecoder { JSONDecoder() }
     var retryPolicy: RetryPolicy { .none }
