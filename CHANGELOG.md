@@ -10,6 +10,7 @@ All notable changes to NetworkingKit are documented in this file.
 - Vendor-neutral lifecycle observation, request correlation IDs, and actor-backed concurrent-attempt limiting.
 - Composable in-memory response caching with cache-first and offline cache-only transport policies.
 - Persistent disk cache with `Cache-Control` TTL, ETag validation, and `304 Not Modified` reuse.
+- Circuit-breaking transport to fail fast during repeated upstream failures.
 
 ## 2.0.0 - 2026-07-18
 
