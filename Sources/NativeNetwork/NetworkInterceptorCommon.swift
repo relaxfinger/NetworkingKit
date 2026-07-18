@@ -2,26 +2,43 @@ import Foundation
 
 // MARK: - 常用 Interceptor 示例（可直接使用或参考）
 
-/// 日志拦截器
-public final class LoggingInterceptor: NetworkInterceptor, @unchecked Sendable {
-    public init() {}
+/// 默认脱敏且不记录 body 的日志拦截器。生产环境应注入项目自己的统一日志系统。
+public struct LoggingInterceptor: NetworkInterceptor {
+    public var logBodies: Bool
+    public var maxBodyLength: Int
+    public var redactedHeaders: Set<String>
+    private let logger: @Sendable (String) -> Void
+    
+    public init(
+        logBodies: Bool = false,
+        maxBodyLength: Int = 1_024,
+        redactedHeaders: Set<String> = ["authorization", "cookie", "set-cookie", "x-api-key"],
+        logger: @escaping @Sendable (String) -> Void = { print($0) }
+    ) {
+        self.logBodies = logBodies
+        self.maxBodyLength = max(0, maxBodyLength)
+        self.redactedHeaders = Set(redactedHeaders.map { $0.lowercased() })
+        self.logger = logger
+    }
     
     public func adapt(_ request: URLRequest) async throws -> URLRequest {
-        print("🌐 [Request] \(request.httpMethod ?? "UNKNOWN") \(request.url?.absoluteString ?? "")")
-        if let body = request.httpBody,
-           let bodyString = String(data: body, encoding: .utf8) {
-            print("Body: \(bodyString)")
-        }
+        let headers = request.allHTTPHeaderFields?.map { key, value in
+            "\(key): \(redactedHeaders.contains(key.lowercased()) ? "<redacted>" : value)"
+        }.sorted().joined(separator: ", ") ?? ""
+        logger("🌐 [Request] \(request.httpMethod ?? "UNKNOWN") \(request.url?.absoluteString ?? "") [\(headers)]")
+        log(body: request.httpBody, label: "Request body")
         return request
     }
     
     public func intercept(response: URLResponse, data: Data) async throws {
         guard let http = response as? HTTPURLResponse else { return }
-        print("✅ [Response] Status: \(http.statusCode) \(http.url?.absoluteString ?? "")")
-        
-        if let bodyString = String(data: data, encoding: .utf8), bodyString.count < 3000 {
-            print("Data: \(bodyString)")
-        }
+        logger("✅ [Response] Status: \(http.statusCode) \(http.url?.absoluteString ?? "")")
+        log(body: data, label: "Response body")
+    }
+    
+    private func log(body: Data?, label: String) {
+        guard logBodies, let body, let text = String(data: body, encoding: .utf8) else { return }
+        logger("\(label): \(String(text.prefix(maxBodyLength)))")
     }
 }
 

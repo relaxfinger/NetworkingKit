@@ -11,4 +11,19 @@ public protocol NetworkClient: AnyObject, Sendable {
     
     /// 拦截器列表（按顺序执行）
     var interceptors: [any NetworkInterceptor] { get }
+    
+    /// 请求 body 的 JSON 编码器。可按项目配置日期、key 策略等。
+    var encoder: JSONEncoder { get }
+    
+    /// 响应 JSON 解码器。可按项目配置日期、key 策略等。
+    var decoder: JSONDecoder { get }
+    
+    /// 临时服务故障的重试策略。默认不重试。
+    var retryPolicy: RetryPolicy { get }
+}
+
+public extension NetworkClient {
+    var encoder: JSONEncoder { JSONEncoder() }
+    var decoder: JSONDecoder { JSONDecoder() }
+    var retryPolicy: RetryPolicy { .none }
 }

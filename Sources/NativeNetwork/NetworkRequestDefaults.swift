@@ -19,6 +19,34 @@ private final class TaskBox: @unchecked Sendable {
     func cancel() { lock.lock(); task?.cancel(); lock.unlock() }
 }
 
+private func performRequest<Request: NetworkRequest>(_ request: Request) async throws -> Request.Response {
+    var urlRequest = try request.buildURLRequest()
+    do { for interceptor in request.client.interceptors { urlRequest = try await interceptor.adapt(urlRequest) } }
+    catch { throw NetworkError.interceptorFailed(message: error.localizedDescription) }
+
+    let data: Data
+    let response: URLResponse
+    do { (data, response) = try await request.client.session.data(for: urlRequest) }
+    catch is CancellationError { throw NetworkError.cancelled }
+    catch let error as URLError where error.code == .cancelled { throw NetworkError.cancelled }
+    catch { throw NetworkError.transport(message: error.localizedDescription) }
+
+    do { for interceptor in request.client.interceptors { try await interceptor.intercept(response: response, data: data) } }
+    catch { throw NetworkError.interceptorFailed(message: error.localizedDescription) }
+    guard let httpResponse = response as? HTTPURLResponse else { throw NetworkError.nonHTTPResponse }
+    guard (200...299).contains(httpResponse.statusCode) else {
+        let headers: [String: String] = Dictionary(uniqueKeysWithValues: httpResponse.allHeaderFields.compactMap { element -> (String, String)? in
+            guard let key = element.key as? String else { return nil }
+            return (key, String(describing: element.value))
+        })
+        if httpResponse.statusCode == 401 { throw NetworkError.unauthorized(headers: headers, body: data) }
+        throw NetworkError.http(statusCode: httpResponse.statusCode, headers: headers, body: data)
+    }
+    guard !data.isEmpty else { throw NetworkError.emptyResponse }
+    do { return try request.client.decoder.decode(Request.Response.self, from: data) }
+    catch { throw NetworkError.decodingFailed(message: error.localizedDescription) }
+}
+
 public extension NetworkRequest {
     var headers: [String: String]? { nil }
     var timeoutInterval: TimeInterval { 30 }
@@ -32,40 +60,26 @@ public extension NetworkRequest {
         request.timeoutInterval = timeoutInterval
         headers?.forEach { request.setValue($0.value, forHTTPHeaderField: $0.key) }
         if let rest = self as? any RestfulRequest, let body = rest.body {
-            do { request.httpBody = try JSONEncoder().encode(body) }
+            do { request.httpBody = try client.encoder.encode(body) }
             catch { throw NetworkError.encodingFailed(message: error.localizedDescription) }
             if request.value(forHTTPHeaderField: "Content-Type") == nil { request.setValue(rest.contentType ?? "application/json", forHTTPHeaderField: "Content-Type") }
         } else if let gql = self as? any GraphQLRequest {
-            do { request.httpBody = try JSONEncoder().encode(GraphQLBody(query: gql.query, variables: gql.variables, operationName: gql.operationName)) }
+            do { request.httpBody = try client.encoder.encode(GraphQLBody(query: gql.query, variables: gql.variables, operationName: gql.operationName)) }
             catch { throw NetworkError.encodingFailed(message: error.localizedDescription) }
         }
         return request
     }
 
     func execute() async throws -> Response {
-        var urlRequest = try buildURLRequest()
-        do { for interceptor in client.interceptors { urlRequest = try await interceptor.adapt(urlRequest) } }
-        catch { throw NetworkError.interceptorFailed(message: error.localizedDescription) }
-        let data: Data
-        let response: URLResponse
-        do { (data, response) = try await client.session.data(for: urlRequest) }
-        catch is CancellationError { throw NetworkError.cancelled }
-        catch let error as URLError where error.code == .cancelled { throw NetworkError.cancelled }
-        catch { throw NetworkError.transport(message: error.localizedDescription) }
-        do { for interceptor in client.interceptors { try await interceptor.intercept(response: response, data: data) } }
-        catch { throw NetworkError.interceptorFailed(message: error.localizedDescription) }
-        guard let httpResponse = response as? HTTPURLResponse else { throw NetworkError.nonHTTPResponse }
-        guard (200...299).contains(httpResponse.statusCode) else {
-            let headers: [String: String] = Dictionary(uniqueKeysWithValues: httpResponse.allHeaderFields.compactMap { element -> (String, String)? in
-                guard let key = element.key as? String else { return nil }
-                return (key, String(describing: element.value))
-            })
-            if httpResponse.statusCode == 401 { throw NetworkError.unauthorized(headers: headers, body: data) }
-            throw NetworkError.http(statusCode: httpResponse.statusCode, headers: headers, body: data)
+        for attempt in 1...client.retryPolicy.maxAttempts {
+            do { return try await performRequest(self) }
+            catch let error as NetworkError {
+                guard attempt < client.retryPolicy.maxAttempts, client.retryPolicy.shouldRetry(error) else { throw error }
+                do { try await Task.sleep(nanoseconds: client.retryPolicy.delayNanoseconds(after: attempt)) }
+                catch { throw NetworkError.cancelled }
+            }
         }
-        guard !data.isEmpty else { throw NetworkError.emptyResponse }
-        do { return try JSONDecoder().decode(Response.self, from: data) }
-        catch { throw NetworkError.decodingFailed(message: error.localizedDescription) }
+        throw NetworkError.invalidRequest
     }
 
     /// Combine bridge. Work starts on subscription and cancellation propagates to URLSession.

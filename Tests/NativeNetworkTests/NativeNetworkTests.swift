@@ -57,13 +57,28 @@ final class NativeNetworkTests: XCTestCase {
         XCTAssertEqual(response.errors?.first?.path, [.string("user"), .number(0)])
     }
 
-    private func makeClient(handler: @escaping URLProtocolStub.Handler = { request in
+    func testRetriesTransientServerError() async throws {
+        let counter = AttemptCounter()
+        let client = makeClient(retryPolicy: .init(maxAttempts: 2, initialDelay: 0)) { request in
+            let attempt = counter.increment()
+            let status = attempt == 1 ? 503 : 200
+            let data = status == 200 ? #"{"id":"42","name":"Ada"}"#.data(using: .utf8)! : Data()
+            return (.init(url: try! XCTUnwrap(request.url), statusCode: status, httpVersion: nil, headerFields: nil)!, data)
+        }
+
+        let user = try await GetUserRequest(client: client, id: "42").execute()
+
+        XCTAssertEqual(user.name, "Ada")
+        XCTAssertEqual(counter.value, 2)
+    }
+
+    private func makeClient(retryPolicy: RetryPolicy = .none, handler: @escaping URLProtocolStub.Handler = { request in
         (.init(url: try! XCTUnwrap(request.url), statusCode: 200, httpVersion: nil, headerFields: nil)!, Data())
     }) -> TestClient {
         URLProtocolStub.handler = handler
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [URLProtocolStub.self]
-        return TestClient(baseURL: URL(string: "https://example.com/api")!, session: URLSession(configuration: configuration))
+        return TestClient(baseURL: URL(string: "https://example.com/api")!, session: URLSession(configuration: configuration), retryPolicy: retryPolicy)
     }
 }
 
@@ -102,7 +117,15 @@ private final class TestClient: NetworkClient, @unchecked Sendable {
     let baseURL: URL
     let session: URLSession
     let interceptors: [any NetworkInterceptor] = []
-    init(baseURL: URL, session: URLSession) { self.baseURL = baseURL; self.session = session }
+    let retryPolicy: RetryPolicy
+    init(baseURL: URL, session: URLSession, retryPolicy: RetryPolicy) { self.baseURL = baseURL; self.session = session; self.retryPolicy = retryPolicy }
+}
+
+private final class AttemptCounter: @unchecked Sendable {
+    private let lock = NSLock()
+    private var attempts = 0
+    func increment() -> Int { lock.lock(); defer { lock.unlock() }; attempts += 1; return attempts }
+    var value: Int { lock.lock(); defer { lock.unlock() }; return attempts }
 }
 
 private final class URLProtocolStub: URLProtocol, @unchecked Sendable {

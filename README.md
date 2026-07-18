@@ -6,7 +6,8 @@
 - 支持 `async/await` 和 Combine
 - 协议驱动，易于继承和扩展
 - 内置 Interceptor 机制（Auth、Logging 等）
-- 现代 Swift（Sendable、Actor 友好）
+- Swift 6 strict concurrency（Sendable、Actor 友好）
+- 可配置 JSON 编解码、退避重试与默认脱敏日志
 
 ## 安装
 
@@ -33,11 +34,15 @@ final class AppNetworkClient: NetworkClient, @unchecked Sendable {
     let baseURL = URL(string: "https://api.example.com")!
     let session: URLSession
     let interceptors: [any NetworkInterceptor]
+    let decoder: JSONDecoder
+    let retryPolicy = RetryPolicy(maxAttempts: 3)
     
     private init() {
         let config = URLSessionConfiguration.default
         // 可在这里配置证书校验、超时等
         self.session = URLSession(configuration: config)
+        self.decoder = JSONDecoder()
+        self.decoder.keyDecodingStrategy = .convertFromSnakeCase
         
         self.interceptors = [
             LoggingInterceptor(),
@@ -46,6 +51,8 @@ final class AppNetworkClient: NetworkClient, @unchecked Sendable {
     }
 }
 ```
+
+`RetryPolicy` 默认不重试；只会重试 408、429、5xx 及传输错误。对带副作用的 POST/PUT，请仅在服务端具备幂等键时启用重试。`LoggingInterceptor` 默认不记录 body，并会脱敏 Authorization、Cookie 与 API Key。
 
 ### 2. 定义业务 Request
 
