@@ -81,6 +81,23 @@ final class NetworkingKitTests: XCTestCase {
         XCTAssertNil(outcome.error)
     }
 
+    func testCachingTransportServesSecondGETFromCache() async throws {
+        let counter = AttemptCounter()
+        let upstream = StubTransport { request in
+            _ = counter.increment()
+            let response = HTTPURLResponse(url: try! XCTUnwrap(request.url), statusCode: 200, httpVersion: nil, headerFields: nil)!
+            return (response, Data("cached".utf8))
+        }
+        let transport = CachingTransport(upstream: upstream, cache: InMemoryResponseCache())
+        let request = URLRequest(url: URL(string: "https://example.com/cache")!)
+
+        _ = try await transport.send(request)
+        let result = try await transport.send(request)
+
+        XCTAssertEqual(String(data: result.0, encoding: .utf8), "cached")
+        XCTAssertEqual(counter.value, 1)
+    }
+
     func testExecuteMapsUnauthorizedResponse() async {
         let client = makeClient { request in
             (.init(url: try! XCTUnwrap(request.url), statusCode: 401, httpVersion: nil, headerFields: ["X-Request-ID": "trace-1"])!, Data())
