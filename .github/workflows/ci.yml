@@ -11,6 +11,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: swift test
+      - run: swift build -c release
 
   demo-build:
     runs-on: macos-latest

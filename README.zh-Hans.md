@@ -367,3 +367,5 @@ MIT，详见 [LICENSE](LICENSE)。
 ## 贡献与安全
 
 开发和 PR 约定见 [CONTRIBUTING.md](CONTRIBUTING.md)，安全漏洞请按 [SECURITY.md](SECURITY.md) 的方式私下报告。
+
+CI 会运行 Debug 测试、Release 构建和两个 Demo target。匹配 `v*` 的 tag 会运行相同验证；若 GitHub Release 尚不存在，则自动创建。
