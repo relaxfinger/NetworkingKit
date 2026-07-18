@@ -19,7 +19,7 @@
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/yourusername/NativeNetwork.git", from: "1.0.0")
+    .package(url: "https://github.com/relaxfinger/NetworkingKit.git", from: "1.0.0")
 ]
 ```
 
@@ -41,7 +41,7 @@ final class AppNetworkClient: NetworkClient, @unchecked Sendable {
     
     let baseURL = URL(string: "https://api.example.com")!
     let session: URLSession
-    let interceptors: [any NetworkInterceptor]
+    let interceptors: [any NetworkInterceptor] = []
     let decoder: JSONDecoder
     let retryPolicy = RetryPolicy(maxAttempts: 3)
     
@@ -52,44 +52,51 @@ final class AppNetworkClient: NetworkClient, @unchecked Sendable {
         self.decoder = JSONDecoder()
         self.decoder.keyDecodingStrategy = .convertFromSnakeCase
         
-        self.interceptors = [
-            LoggingInterceptor(),
-            AuthInterceptor { /* 返回你的 token */ nil }
-        ]
     }
 }
 ```
 
 `RetryPolicy` 默认不重试；只会重试 408、429、5xx 及传输错误。对带副作用的 POST/PUT，请仅在服务端具备幂等键时启用重试。`LoggingInterceptor` 默认不记录 body，并会脱敏 Authorization、Cookie 与 API Key。
 
-### 2. 定义业务 Request
+### 2. App Request 基类（推荐）
 
 ```swift
-struct GetUserRequest: RestfulRequest {
-    typealias Response = User
-    let client: any NetworkClient
-    let userId: String
-    
-    var path: String { "/users/\(userId)" }
+/// App 层基类：统一注入 client，减少每个业务 Request 的重复代码。
+/// T 必须满足 Sendable，才能符合 NativeNetwork 的 Swift 6 并发约束。
+class AppRequest<T: Decodable & Sendable>: NetworkRequest, @unchecked Sendable {
+    typealias Response = T
+    let client: any NetworkClient = AppNetworkClient.shared
+
+    var path: String { "" }
     var method: HTTPMethod { .get }
+    var headers: [String: String]? { nil }
+}
+```
+
+Swift 的 `struct` 不能继承 class；因此采用基类时，业务请求也应使用 `final class`。
+
+### 3. REST 业务请求
+
+```swift
+final class GetUserRequest: AppRequest<User>, RestfulRequest, @unchecked Sendable {
+    override var path: String { "/users/123" }
+    override var method: HTTPMethod { .get }
     var queryItems: [URLQueryItem]? { nil }
     var body: (any Encodable & Sendable)? { nil }
     var contentType: String? { nil }
 }
 ```
 
-### 3. GraphQL 请求
+### 4. GraphQL 业务请求
 
 ```swift
-struct FetchUserProfileRequest: GraphQLRequest {
-    typealias Response = GraphQLResponse<UserProfile>
-    let client: any NetworkClient
-    let userId: String
-    
+final class FetchUserProfileRequest: AppRequest<GraphQLResponse<UserProfile>>, GraphQLRequest, @unchecked Sendable {
+    override var path: String { "/graphql" }
+    override var method: HTTPMethod { .post }
     var query: String {
         """
-        query GetUser($id: ID!) {
-            user(id: $id) {
+        query {
+            user {
                 id
                 name
                 email
@@ -97,25 +104,26 @@ struct FetchUserProfileRequest: GraphQLRequest {
         }
         """
     }
-    
-    var variables: [String: AnyEncodable]? {
-        ["id": AnyEncodable(userId)]
+
+    // AppRequest 已实现 path/method/headers，因此此处显式覆盖 GraphQL 默认值。
+    override var headers: [String: String]? {
+        ["Accept": "application/json", "Content-Type": "application/json"]
     }
 }
 ```
 
-### 4. 调用
+### 5. 调用
 
 ```swift
 // async/await
-let user = try await GetUserRequest(client: AppNetworkClient.shared, userId: "123").execute()
-let profile = try await FetchUserProfileRequest(client: AppNetworkClient.shared, userId: "123").execute()
+let user = try await GetUserRequest().execute()
+let profile = try await FetchUserProfileRequest().execute()
 let userProfile = profile.data
 // GraphQL 可以同时返回 data 与 errors；按业务需要处理部分结果。
 let graphQLErrors = profile.errors
 
 // Combine
-GetUserRequest(client: AppNetworkClient.shared, userId: "123").executePublisher()
+GetUserRequest().executePublisher()
     .sink(receiveCompletion: { _ in }, receiveValue: { user in
         print(user)
     })
