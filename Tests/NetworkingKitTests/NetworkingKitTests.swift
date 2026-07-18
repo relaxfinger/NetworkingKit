@@ -154,6 +154,15 @@ final class NetworkingKitTests: XCTestCase {
         )
     }
 
+    func testNetworkErrorExposesHTTPContext() {
+        let body = #"{"message":"rate limited"}"#.data(using: .utf8)!
+        let error = NetworkError.http(statusCode: 429, headers: ["X-Request-ID": "trace-1"], body: body)
+
+        XCTAssertEqual(error.statusCode, 429)
+        XCTAssertEqual(error.responseHeaders?["X-Request-ID"], "trace-1")
+        XCTAssertEqual(error.responseBody, body)
+    }
+
     private func makeClient(
         configuration: NetworkConfiguration? = nil,
         retryPolicy: RetryPolicy = .none,
