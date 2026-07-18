@@ -236,6 +236,15 @@ let transport = CachingTransport(
 )
 ```
 
+需要跨 App 启动保留缓存并遵循 HTTP 重新验证语义时，请使用 `DiskResponseCache`。过期条目存在 ETag 时会自动发送 `If-None-Match`；服务端返回 `304 Not Modified` 后会复用本地 body 并刷新 TTL。
+
+```swift
+let directory = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+    .appendingPathComponent("NetworkingKitCache")
+let cache = DiskResponseCache(directory: directory)
+let transport = CachingTransport(upstream: URLSessionTransport(session: session), cache: cache)
+```
+
 证书固定和信任策略有意交由 App 持有的 `URLSession` 或自定义 `NetworkTransport` 管理。可通过 `URLSessionDelegate` 配置服务端信任校验，再把该 Session 注入 `URLSessionTransport`；这样安全策略可按 App 域名与证书轮换流程进行审计。
 
 ### 内置拦截器
