@@ -247,6 +247,17 @@ let transport = CachingTransport(upstream: URLSessionTransport(session: session)
 
 证书固定和信任策略有意交由 App 持有的 `URLSession` 或自定义 `NetworkTransport` 管理。可通过 `URLSessionDelegate` 配置服务端信任校验，再把该 Session 注入 `URLSessionTransport`；这样安全策略可按 App 域名与证书轮换流程进行审计。
 
+### 断路器
+
+使用 `CircuitBreakingTransport` 包装 Transport，可在上游连续失败时快速拒绝请求，避免持续冲击异常服务。它可与 `RequestConcurrencyLimiter` 组合，分别限制故障放大和并发负载。
+
+```swift
+let transport = CircuitBreakingTransport(
+    upstream: URLSessionTransport(session: session),
+    circuitBreaker: CircuitBreaker(failureThreshold: 5, resetTimeout: 30)
+)
+```
+
 ### 内置拦截器
 
 `AuthInterceptor` 会在存在 token 时添加 Bearer Authorization Header：

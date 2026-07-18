@@ -266,6 +266,17 @@ let transport = CachingTransport(upstream: URLSessionTransport(session: session)
 
 NetworkingKit deliberately leaves certificate pinning and trust policy to the app-owned `URLSession` or a custom `NetworkTransport`. Configure a `URLSessionDelegate` for server-trust evaluation, then inject that session into `URLSessionTransport`; this keeps security policy auditable and specific to the app’s domains and rotation process.
 
+### Circuit breaker
+
+Wrap a transport with `CircuitBreakingTransport` to stop repeated failures from overwhelming an unhealthy service. Combine it with `RequestConcurrencyLimiter` to limit both failure amplification and concurrent load.
+
+```swift
+let transport = CircuitBreakingTransport(
+    upstream: URLSessionTransport(session: session),
+    circuitBreaker: CircuitBreaker(failureThreshold: 5, resetTimeout: 30)
+)
+```
+
 ### Built-in interceptors
 
 `AuthInterceptor` adds a bearer token when one is available:
