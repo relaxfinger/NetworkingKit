@@ -56,7 +56,7 @@ struct ContentView: View {
                 }
                 .multilineTextAlignment(.center)
 
-                Text("NativeNetwork on \(platformName)\nAppNetworkClient · AppRequest · REST · GraphQL")
+                Text("NativeNetwork on \(platformName)\nAppNetworkClient · AppRequest · REST · GraphQL · Interceptors")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)

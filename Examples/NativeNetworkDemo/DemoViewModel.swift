@@ -74,12 +74,24 @@ final class AppNetworkClient: NetworkClient, @unchecked Sendable {
 
     let baseURL = URL(string: "https://rickandmortyapi.com")!
     let session: URLSession
-    let interceptors: [any NetworkInterceptor] = []
+    let interceptors: [any NetworkInterceptor] = [
+        DemoRequestHeaderInterceptor(),
+        LoggingInterceptor(logBodies: false) { print($0) }
+    ]
     let configuration = AppNetworkConfiguration.default
 
     private init() {
         let configuration = URLSessionConfiguration.default
         self.session = URLSession(configuration: configuration)
+    }
+}
+
+/// Demonstrates an app-defined interceptor that adds a header to every request.
+struct DemoRequestHeaderInterceptor: NetworkInterceptor {
+    func adapt(_ request: URLRequest) async throws -> URLRequest {
+        var request = request
+        request.setValue("NativeNetworkDemo", forHTTPHeaderField: "X-Demo-Client")
+        return request
     }
 }
 

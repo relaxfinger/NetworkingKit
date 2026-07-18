@@ -1,21 +1,32 @@
 # NativeNetwork
 
-轻量级、纯原生 Swift 网络层，同时支持 **RESTful** 和 **GraphQL**。
+[简体中文](README.zh-Hans.md)
 
-- 零第三方依赖（仅使用 Foundation + Combine）
-- 支持 `async/await` 和 Combine
-- 协议驱动，易于继承和扩展
-- 内置 Interceptor 机制（Auth、Logging 等）
-- Swift 6 strict concurrency（Sendable、Actor 友好）
-- 可配置 JSON 编解码、退避重试与默认脱敏日志
+NativeNetwork is a lightweight, native Swift networking library for iOS and macOS apps. It supports REST, GraphQL, `async/await`, Combine, Swift 6 concurrency, configurable client defaults, error localization, and request interceptors.
 
-**平台要求：iOS 17+、macOS 14+、tvOS 15+、watchOS 8+。**
+## Features
 
-## 安装
+- No third-party dependencies; Foundation and Combine only.
+- REST and GraphQL requests with a small protocol-based API.
+- `async/await` and Combine APIs.
+- Swift 6 concurrency support with `Sendable`-aware public APIs.
+- Per-client configuration for timeouts, retries, and localized error messages.
+- Built-in `AuthInterceptor` and privacy-conscious `LoggingInterceptor`.
+- Custom request/response interceptors for cross-cutting application behavior.
+
+## Requirements
+
+- iOS 17+
+- macOS 14+
+- tvOS 15+
+- watchOS 8+
+- Swift 6.0+
+
+## Installation
 
 ### Swift Package Manager
 
-在 `Package.swift` 中添加：
+Add the package in Xcode through **File > Add Package Dependencies**, or declare it in `Package.swift`:
 
 ```swift
 dependencies: [
@@ -23,46 +34,18 @@ dependencies: [
 ]
 ```
 
-或在 Xcode 中：`File` → `Add Package Dependencies...`
+Then add `NativeNetwork` to the target dependencies that use it.
 
-## 快速开始
+## Quick start
 
-## iOS 与 macOS Demo
+### 1. Create an app client
 
-仓库的 `Examples/NativeNetworkDemo/NativeNetworkDemo.xcodeproj` 含两个原生 SwiftUI App scheme：`NativeNetworkDemo-iOS` 与 `NativeNetworkDemo-macOS`。选择对应 scheme 并在 Xcode 中运行，即可查看 REST 与 GraphQL 调用。
-
-示例使用 JSONPlaceholder 与 Rick and Morty GraphQL API，仅用于学习和本地验证；生产应用应使用自己的后端地址、认证与日志策略。
-
-### 1. 实现自己的 NetworkClient
+An app owns its base URL, `URLSession`, interceptors, decoders, and default configuration in one `NetworkClient` implementation.
 
 ```swift
-final class AppNetworkClient: NetworkClient, @unchecked Sendable {
-    static let shared = AppNetworkClient()
-    
-    let baseURL = URL(string: "https://api.example.com")!
-    let session: URLSession
-    let interceptors: [any NetworkInterceptor] = []
-    let decoder: JSONDecoder
-    let configuration = AppNetworkConfiguration.production
-    
-    private init() {
-        let config = URLSessionConfiguration.default
-        // 可在这里配置证书校验、超时等
-        self.session = URLSession(configuration: config)
-        self.decoder = JSONDecoder()
-        self.decoder.keyDecodingStrategy = .convertFromSnakeCase
-        
-    }
-}
-```
+import Foundation
+import NativeNetwork
 
-`NetworkConfiguration` 是 Client 实例级默认策略；业务 Request 仍可重写 `timeoutInterval`。`RetryPolicy` 默认不重试；只会重试 408、429、5xx 及传输错误。对带副作用的 POST/PUT，请仅在服务端具备幂等键时启用重试。`LoggingInterceptor` 默认不记录 body，并会脱敏 Authorization、Cookie 与 API Key。
-
-### 自定义 `NetworkConfiguration`
-
-将配置集中在 App 层，生产、测试和预发布环境可各自拥有独立的超时、重试及错误本地化策略：
-
-```swift
 enum AppNetworkConfiguration {
     static let production = NetworkConfiguration(
         timeoutInterval: 15,
@@ -76,24 +59,179 @@ enum AppNetworkConfiguration {
         errorLocalizer: AppNetworkErrorLocalizer()
     )
 }
+
+final class AppNetworkClient: NetworkClient, @unchecked Sendable {
+    static let shared = AppNetworkClient()
+
+    let baseURL = URL(string: "https://api.example.com")!
+    let session: URLSession
+    let decoder: JSONDecoder
+    let configuration = AppNetworkConfiguration.production
+    let interceptors: [any NetworkInterceptor] = [
+        AuthInterceptor { TokenStore.shared.accessToken },
+        LoggingInterceptor(logBodies: false) { print($0) }
+    ]
+
+    private init() {
+        let sessionConfiguration = URLSessionConfiguration.default
+        session = URLSession(configuration: sessionConfiguration)
+
+        decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+    }
+}
 ```
 
-将对应配置赋给各自的 `NetworkClient` 即可；配置是不可变值，不会影响其他 Client：
+`NetworkConfiguration` is immutable and scoped to one client. A request can still override `timeoutInterval` when a specific endpoint needs a different timeout.
+
+### 2. Add an app request base class
+
+Use a base class to avoid repeating the client in every request. Requests inheriting from a class must also be classes; Swift structures cannot inherit from classes.
 
 ```swift
-let configuration = AppNetworkConfiguration.production
+class AppRequest<T: Decodable & Sendable>: NetworkRequest, @unchecked Sendable {
+    typealias Response = T
+    let client: any NetworkClient = AppNetworkClient.shared
+
+    var path: String { "" }
+    var method: HTTPMethod { .get }
+    var headers: [String: String]? { nil }
+}
 ```
 
-### 错误本地化
+### 3. Define a REST request
 
-`NetworkError` 保持为稳定的错误模型，显示文案由 App 注入 `NetworkErrorLocalizing` 决定。以下实现可使用 App 自己的 `Localizable.strings`，并支持按传入的 `Locale` 切换语言：
+```swift
+struct User: Decodable, Sendable {
+    let id: String
+    let name: String
+}
+
+final class GetUserRequest: AppRequest<User>, RestfulRequest, @unchecked Sendable {
+    override var path: String { "/users/123" }
+    override var method: HTTPMethod { .get }
+
+    var queryItems: [URLQueryItem]? { nil }
+    var body: (any Encodable & Sendable)? { nil }
+    var contentType: String? { nil }
+}
+```
+
+For a JSON request body, return any `Encodable & Sendable` value from `body`. The library automatically applies `application/json` unless a request supplies another `contentType`.
+
+### 4. Define a GraphQL request
+
+GraphQL responses retain both partial `data` and server `errors`.
+
+```swift
+struct UserProfile: Decodable, Sendable {
+    let id: String
+    let name: String
+    let email: String
+}
+
+final class FetchUserProfileRequest: AppRequest<GraphQLResponse<UserProfile>>, GraphQLRequest, @unchecked Sendable {
+    override var path: String { "/graphql" }
+    override var method: HTTPMethod { .post }
+    override var headers: [String: String]? {
+        ["Accept": "application/json", "Content-Type": "application/json"]
+    }
+
+    var query: String {
+        """
+        query {
+            user { id name email }
+        }
+        """
+    }
+}
+```
+
+`AppRequest` already provides `path`, `method`, and `headers`, so GraphQL requests explicitly override these values to preserve the GraphQL defaults.
+
+### 5. Execute requests
+
+```swift
+let user = try await GetUserRequest().execute()
+
+let profileResponse = try await FetchUserProfileRequest().execute()
+let profile = profileResponse.data
+let graphQLErrors = profileResponse.errors
+```
+
+The Combine API starts work only when subscribed to and cancels the underlying task when the subscription is cancelled.
+
+```swift
+GetUserRequest()
+    .executePublisher()
+    .sink(
+        receiveCompletion: { completion in print(completion) },
+        receiveValue: { user in print(user.name) }
+    )
+    .store(in: &cancellables)
+```
+
+## Network interceptors
+
+`NetworkInterceptor` handles behavior that should apply consistently across requests: authentication, headers, request signing, logging, response observation, metrics, and test stubs.
+
+Interceptors run in declaration order. `adapt(_:)` runs before `URLSession` sends the request. `intercept(response:data:)` runs after a response is received and before HTTP status validation and decoding. Throwing from either method produces `NetworkError.interceptorFailed`.
+
+### Built-in interceptors
+
+`AuthInterceptor` adds a bearer token when one is available:
+
+```swift
+AuthInterceptor { TokenStore.shared.accessToken }
+```
+
+`LoggingInterceptor` logs request and response metadata. It redacts `Authorization`, cookies, and API keys by default. Keep `logBodies` disabled in production unless body logging is explicitly safe.
+
+```swift
+LoggingInterceptor(
+    logBodies: false,
+    logger: { message in AppLogger.network.debug("\(message)") }
+)
+```
+
+### Custom interceptor
+
+This interceptor adds an application header to every request:
+
+```swift
+struct ClientHeaderInterceptor: NetworkInterceptor {
+    func adapt(_ request: URLRequest) async throws -> URLRequest {
+        var request = request
+        request.setValue("iOS", forHTTPHeaderField: "X-Client-Platform")
+        return request
+    }
+}
+
+let interceptors: [any NetworkInterceptor] = [
+    ClientHeaderInterceptor(),
+    AuthInterceptor { TokenStore.shared.accessToken },
+    LoggingInterceptor(logBodies: false)
+]
+```
+
+The included Demo registers both `DemoRequestHeaderInterceptor` and `LoggingInterceptor`, so the behavior is visible in the Xcode console while requests run.
+
+## Retry behavior
+
+`RetryPolicy` is disabled by default. When enabled, it retries transport errors and HTTP 408, 429, and 5xx responses with exponential backoff. Only retry non-idempotent requests when your backend supports idempotency keys.
+
+```swift
+let policy = RetryPolicy(maxAttempts: 3, initialDelay: 0.25, multiplier: 2)
+```
+
+## Localized errors
+
+`NetworkError` is a stable error model. Apps choose display text by injecting `NetworkErrorLocalizing` into `NetworkConfiguration`.
 
 ```swift
 struct AppNetworkErrorLocalizer: NetworkErrorLocalizing {
     func message(for error: NetworkError, locale: Locale) -> String {
         switch error {
-        case .invalidURL:
-            return String(localized: "network.error.invalid_url", bundle: .main, locale: locale)
         case .unauthorized:
             return String(localized: "network.error.unauthorized", bundle: .main, locale: locale)
         case let .http(statusCode, _, _):
@@ -106,96 +244,17 @@ struct AppNetworkErrorLocalizer: NetworkErrorLocalizing {
         }
     }
 }
-```
 
-在展示错误时使用 Client 的本地化器：
-
-```swift
-let message = error.localizedDescription(
+let message = networkError.localizedDescription(
     using: AppNetworkClient.shared.configuration.errorLocalizer,
     locale: .current
 )
 ```
 
-### 2. App Request 基类（推荐）
+## Demo
 
-```swift
-/// App 层基类：统一注入 client，减少每个业务 Request 的重复代码。
-/// T 必须满足 Sendable，才能符合 NativeNetwork 的 Swift 6 并发约束。
-class AppRequest<T: Decodable & Sendable>: NetworkRequest, @unchecked Sendable {
-    typealias Response = T
-    let client: any NetworkClient = AppNetworkClient.shared
-
-    var path: String { "" }
-    var method: HTTPMethod { .get }
-    var headers: [String: String]? { nil }
-}
-```
-
-Swift 的 `struct` 不能继承 class；因此采用基类时，业务请求也应使用 `final class`。
-
-### 3. REST 业务请求
-
-```swift
-final class GetUserRequest: AppRequest<User>, RestfulRequest, @unchecked Sendable {
-    override var path: String { "/users/123" }
-    override var method: HTTPMethod { .get }
-    var queryItems: [URLQueryItem]? { nil }
-    var body: (any Encodable & Sendable)? { nil }
-    var contentType: String? { nil }
-}
-```
-
-### 4. GraphQL 业务请求
-
-```swift
-final class FetchUserProfileRequest: AppRequest<GraphQLResponse<UserProfile>>, GraphQLRequest, @unchecked Sendable {
-    override var path: String { "/graphql" }
-    override var method: HTTPMethod { .post }
-    var query: String {
-        """
-        query {
-            user {
-                id
-                name
-                email
-            }
-        }
-        """
-    }
-
-    // AppRequest 已实现 path/method/headers，因此此处显式覆盖 GraphQL 默认值。
-    override var headers: [String: String]? {
-        ["Accept": "application/json", "Content-Type": "application/json"]
-    }
-}
-```
-
-### 5. 调用
-
-```swift
-// async/await
-let user = try await GetUserRequest().execute()
-let profile = try await FetchUserProfileRequest().execute()
-let userProfile = profile.data
-// GraphQL 可以同时返回 data 与 errors；按业务需要处理部分结果。
-let graphQLErrors = profile.errors
-
-// Combine
-GetUserRequest().executePublisher()
-    .sink(receiveCompletion: { _ in }, receiveValue: { user in
-        print(user)
-    })
-    .store(in: &cancellables)
-```
-
-## 架构说明
-
-- `NetworkClient`：配置层（baseURL、Session、Interceptor）
-- `NetworkRequest`：请求基础协议
-- `RestfulRequest` / `GraphQLRequest`：具体协议
-- Interceptor：请求/响应拦截
+Open `Examples/NativeNetworkDemo/NativeNetworkDemo.xcodeproj` and run either `NativeNetworkDemo-iOS` or `NativeNetworkDemo-macOS`. The demo contains REST, GraphQL, app-level configuration, a bilingual error localizer, and both built-in and custom interceptors.
 
 ## License
 
-MIT
+MIT. See [LICENSE](LICENSE).
