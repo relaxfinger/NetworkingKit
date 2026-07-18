@@ -13,6 +13,7 @@ All notable changes to NetworkingKit are documented in this file.
 - Circuit-breaking transport to fail fast during repeated upstream failures.
 - Host-scoped certificate pinning and a reusable URLSession trust delegate.
 - OSLog observer and an SDK-agnostic OpenTelemetry event bridge.
+- Release build verification, benchmark smoke test, and tag-triggered release automation.
 
 ## 2.0.0 - 2026-07-18
 

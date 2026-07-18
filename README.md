@@ -391,3 +391,5 @@ MIT. See [LICENSE](LICENSE).
 ## Contributing and security
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for development and pull-request guidance, and [SECURITY.md](SECURITY.md) for responsible vulnerability reporting.
+
+CI runs debug tests, release builds, and both Demo targets. Tags matching `v*` run the same verification and create a GitHub Release when one does not already exist.
