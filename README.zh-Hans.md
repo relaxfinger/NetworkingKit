@@ -223,6 +223,21 @@ actor AppNetworkObserver: NetworkObserving {
 
 将 `RequestConcurrencyLimiter` 配置为 Client 的 `executionController` 可限制同时进行的传输尝试数。重试和一次认证重放均会计入尝试次数，避免故障风暴耗尽设备或服务端资源。
 
+### 缓存、离线模式与传输安全
+
+通过包装默认 Transport 可缓存成功的 `GET` 响应。`returnCacheElseLoad` 为缓存优先；`returnCacheDontLoad` 提供确定性的离线行为，找不到缓存时会抛出 `CacheMissError`。
+
+```swift
+let cache = InMemoryResponseCache(capacity: 200)
+let transport = CachingTransport(
+    upstream: URLSessionTransport(session: session),
+    cache: cache,
+    policy: .returnCacheElseLoad
+)
+```
+
+证书固定和信任策略有意交由 App 持有的 `URLSession` 或自定义 `NetworkTransport` 管理。可通过 `URLSessionDelegate` 配置服务端信任校验，再把该 Session 注入 `URLSessionTransport`；这样安全策略可按 App 域名与证书轮换流程进行审计。
+
 ### 内置拦截器
 
 `AuthInterceptor` 会在存在 token 时添加 Bearer Authorization Header：

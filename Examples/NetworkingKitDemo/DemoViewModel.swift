@@ -87,6 +87,15 @@ final class AppNetworkClient: NetworkClient, @unchecked Sendable {
     let session: URLSession
     let configuration = AppNetworkConfiguration.default
     private let refreshingAuthentication = RefreshingAuthInterceptor(provider: DemoTokenProvider.shared)
+    private let responseCache = InMemoryResponseCache(capacity: 50)
+
+    var transport: any NetworkTransport {
+        CachingTransport(
+            upstream: URLSessionTransport(session: session),
+            cache: responseCache,
+            policy: .returnCacheElseLoad
+        )
+    }
 
     var interceptors: [any NetworkInterceptor] {
         [

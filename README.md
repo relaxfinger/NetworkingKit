@@ -242,6 +242,21 @@ actor AppNetworkObserver: NetworkObserving {
 
 Use `RequestConcurrencyLimiter` as the client’s `executionController` to cap simultaneous transport attempts. Retries and one-time authentication replays each count as an attempt, which prevents failure storms from exhausting device or backend resources.
 
+### Caching, offline mode, and transport security
+
+Wrap the default transport to cache successful `GET` responses. `returnCacheElseLoad` is cache-first; `returnCacheDontLoad` provides deterministic offline behavior and throws `CacheMissError` when no entry exists.
+
+```swift
+let cache = InMemoryResponseCache(capacity: 200)
+let transport = CachingTransport(
+    upstream: URLSessionTransport(session: session),
+    cache: cache,
+    policy: .returnCacheElseLoad
+)
+```
+
+NetworkingKit deliberately leaves certificate pinning and trust policy to the app-owned `URLSession` or a custom `NetworkTransport`. Configure a `URLSessionDelegate` for server-trust evaluation, then inject that session into `URLSessionTransport`; this keeps security policy auditable and specific to the app’s domains and rotation process.
+
 ### Built-in interceptors
 
 `AuthInterceptor` adds a bearer token when one is available:
