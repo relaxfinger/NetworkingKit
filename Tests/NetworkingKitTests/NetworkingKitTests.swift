@@ -81,6 +81,24 @@ final class NetworkingKitTests: XCTestCase {
         XCTAssertNil(outcome.error)
     }
 
+    func testMetricsObserverAggregatesCompletedAttempts() async {
+        let metrics = NetworkMetrics()
+        let observer = NetworkMetricsObserver(metrics: metrics)
+        let context = NetworkRequestContext(id: "metrics", method: .get, url: URL(string: "https://example.com")!)
+
+        await observer.record(.started(context))
+        await observer.record(.finished(context, .init(statusCode: 200, duration: 0.2, error: nil)))
+        await observer.record(.finished(context, .init(statusCode: nil, duration: 0.4, error: .transport(message: "offline"))))
+
+        let snapshot = await metrics.snapshot()
+        XCTAssertEqual(snapshot.totalCount, 2)
+        XCTAssertEqual(snapshot.successCount, 1)
+        XCTAssertEqual(snapshot.failureCount, 1)
+        XCTAssertEqual(snapshot.transportFailureCount, 1)
+        XCTAssertEqual(snapshot.statusCodeCounts, [200: 1])
+        XCTAssertEqual(snapshot.averageDuration, 0.3, accuracy: 0.000_001)
+    }
+
     func testCachingTransportServesSecondGETFromCache() async throws {
         let counter = AttemptCounter()
         let upstream = StubTransport { request in

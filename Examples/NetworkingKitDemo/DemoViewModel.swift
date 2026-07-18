@@ -89,6 +89,7 @@ final class AppNetworkClient: NetworkClient, @unchecked Sendable {
     private let refreshingAuthentication = RefreshingAuthInterceptor(provider: DemoTokenProvider.shared)
     private let responseCache = InMemoryResponseCache(capacity: 50)
     private let circuitBreakers = CircuitBreakerRegistry(failureThreshold: 3, resetTimeout: 20)
+    private let networkMetrics = NetworkMetrics()
 
     var transport: any NetworkTransport {
         CachingTransport(
@@ -111,7 +112,9 @@ final class AppNetworkClient: NetworkClient, @unchecked Sendable {
     }
 
     var authentication: (any AuthenticationRefreshing)? { refreshingAuthentication }
-    let observers: [any NetworkObserving] = [DemoNetworkObserver()]
+    var observers: [any NetworkObserving] {
+        [DemoNetworkObserver(), NetworkMetricsObserver(metrics: networkMetrics)]
+    }
     let executionController: (any NetworkExecutionControlling)? = RequestConcurrencyLimiter(maximumConcurrentRequests: 4)
 
     private init() {

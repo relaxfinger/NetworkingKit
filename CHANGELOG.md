@@ -2,7 +2,13 @@
 
 All notable changes to NetworkingKit are documented in this file.
 
-## 2.2.9 - Unreleased
+## 2.2.10 - Unreleased
+
+### Added
+
+- Actor-safe aggregate network metrics with a vendor-neutral observer adapter.
+
+## 2.2.9 - 2026-07-18
 
 ### Added
 

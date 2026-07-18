@@ -229,6 +229,18 @@ Use `OSLogNetworkObserver(subsystem: "com.example.app")` for zero-dependency uni
 
 Add `RequestIDInterceptor()` to propagate an `X-Request-ID` value. `NetworkObserving` receives start and finish events for every transport attempt, including status, duration, and a structured `NetworkError` when one occurs. Implement it with an actor to forward data to OSLog, OpenTelemetry, or your telemetry service without blocking requests.
 
+For vendor-neutral aggregate health metrics, attach `NetworkMetricsObserver`. The actor-backed collector reports request counts, transport failures, HTTP status-code distribution, and average attempt duration; snapshot it periodically and export it with your preferred metrics SDK.
+
+```swift
+let metrics = NetworkMetrics()
+let observers: [any NetworkObserving] = [
+    OSLogNetworkObserver(subsystem: Bundle.main.bundleIdentifier ?? "com.example.app"),
+    NetworkMetricsObserver(metrics: metrics)
+]
+
+let snapshot = await metrics.snapshot()
+```
+
 ```swift
 actor AppNetworkObserver: NetworkObserving {
     func record(_ event: NetworkEvent) async {

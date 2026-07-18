@@ -210,6 +210,18 @@ let transport: any NetworkTransport = StubTransport()
 
 添加 `RequestIDInterceptor()` 后，每个请求都会携带 `X-Request-ID`。`NetworkObserving` 会收到每一次传输尝试的开始和结束事件，其中包含状态码、耗时，以及失败时结构化的 `NetworkError`。建议使用 actor 实现该协议，再将数据转发给 OSLog、OpenTelemetry 或自有埋点系统，且不会阻塞请求。
 
+需要与厂商无关的聚合健康指标时，可添加 `NetworkMetricsObserver`。其 actor 收集器提供请求总量、传输失败数、HTTP 状态码分布和平均尝试耗时；定时读取快照后可用任意指标 SDK 导出。
+
+```swift
+let metrics = NetworkMetrics()
+let observers: [any NetworkObserving] = [
+    OSLogNetworkObserver(subsystem: Bundle.main.bundleIdentifier ?? "com.example.app"),
+    NetworkMetricsObserver(metrics: metrics)
+]
+
+let snapshot = await metrics.snapshot()
+```
+
 ```swift
 actor AppNetworkObserver: NetworkObserving {
     func record(_ event: NetworkEvent) async {
