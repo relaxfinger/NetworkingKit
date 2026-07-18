@@ -128,13 +128,10 @@ struct AppNetworkErrorLocalizer: NetworkErrorLocalizing {
     }
 }
 
-/// An app-specific base request that injects `AppNetworkClient` to avoid repeating client setup.
-class AppRequest<T: Decodable & Sendable>: NetworkRequest, @unchecked Sendable {
+/// An app-specific base type that injects `AppNetworkClient` without selecting a request protocol.
+class AppRequest<T: Decodable & Sendable>: @unchecked Sendable {
     typealias Response = T
     let client: any NetworkClient = AppNetworkClient.shared
-    var path: String { "" }
-    var method: HTTPMethod { .get }
-    var headers: [String: String]? { nil }
 }
 
 // MARK: - REST
@@ -150,8 +147,8 @@ final class GetCharacterRequest: AppRequest<RESTCharacter>, RestfulRequest, @unc
     private let id: String
 
     init(id: String) { self.id = id }
-    override var path: String { "/api/character/\(id)" }
-    override var method: HTTPMethod { .get }
+    var path: String { "/api/character/\(id)" }
+    var method: HTTPMethod { .get }
     var queryItems: [URLQueryItem]? { nil }
     var body: (any Encodable & Sendable)? { nil }
     var contentType: String? { nil }
@@ -168,9 +165,6 @@ final class FetchCharacterProfileRequest: AppRequest<GraphQLResponse<GraphQLChar
     private let id: String
 
     init(id: String) { self.id = id }
-    override var path: String { "/graphql" }
-    override var method: HTTPMethod { .post }
-    override var headers: [String: String]? { ["Accept": "application/json", "Content-Type": "application/json"] }
     var query: String { "query Character($id: ID!) { character(id: $id) { name species status } }" }
     var variables: [String: AnyEncodable]? { ["id": AnyEncodable(id)] }
 }

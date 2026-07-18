@@ -83,17 +83,13 @@ final class AppNetworkClient: NetworkClient, @unchecked Sendable {
 ### 2. 创建 App Request 基类
 
 ```swift
-class AppRequest<T: Decodable & Sendable>: NetworkRequest, @unchecked Sendable {
+class AppRequest<T: Decodable & Sendable>: @unchecked Sendable {
     typealias Response = T
     let client: any NetworkClient = AppNetworkClient.shared
-
-    var path: String { "" }
-    var method: HTTPMethod { .get }
-    var headers: [String: String]? { nil }
 }
 ```
 
-采用基类时，业务 Request 也必须是 class，因为 Swift 的 `struct` 不能继承 class。
+采用基类时，业务 Request 也必须是 class，因为 Swift 的 `struct` 不能继承 class。基类不应直接遵循 `NetworkRequest`，以便 REST 或 GraphQL 子类获得其各自协议提供的默认值。
 
 ### 3. REST 请求
 
@@ -104,8 +100,8 @@ struct User: Decodable, Sendable {
 }
 
 final class GetUserRequest: AppRequest<User>, RestfulRequest, @unchecked Sendable {
-    override var path: String { "/users/123" }
-    override var method: HTTPMethod { .get }
+    var path: String { "/users/123" }
+    var method: HTTPMethod { .get }
     var queryItems: [URLQueryItem]? { nil }
     var body: (any Encodable & Sendable)? { nil }
     var contentType: String? { nil }
@@ -123,16 +119,11 @@ struct UserProfile: Decodable, Sendable {
 }
 
 final class FetchUserProfileRequest: AppRequest<GraphQLResponse<UserProfile>>, GraphQLRequest, @unchecked Sendable {
-    override var path: String { "/graphql" }
-    override var method: HTTPMethod { .post }
-    override var headers: [String: String]? {
-        ["Accept": "application/json", "Content-Type": "application/json"]
-    }
     var query: String { "query { user { id name } }" }
 }
 ```
 
-GraphQL 的 `GraphQLResponse` 可以同时保留部分 `data` 和服务端 `errors`。
+GraphQL 的 `GraphQLResponse` 可以同时保留部分 `data` 和服务端 `errors`。`GraphQLRequest` 默认提供 `/graphql`、`POST` 与 JSON `Accept`/`Content-Type` Header；只有服务端端点或请求格式不同才需要显式覆盖。
 
 ### 5. 发起调用
 
