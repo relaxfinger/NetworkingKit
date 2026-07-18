@@ -18,8 +18,8 @@ NativeNetwork is a lightweight, native Swift networking library for iOS and macO
 
 - iOS 17+
 - macOS 14+
-- tvOS 15+
-- watchOS 8+
+- tvOS 17+
+- watchOS 10+
 - Swift 6.0+
 
 ## Installation

@@ -18,8 +18,8 @@ NativeNetwork 是一个面向 iOS 与 macOS App 的轻量级原生 Swift 网络�
 
 - iOS 17+
 - macOS 14+
-- tvOS 15+
-- watchOS 8+
+- tvOS 17+
+- watchOS 10+
 - Swift 6.0+
 
 ## 安装
