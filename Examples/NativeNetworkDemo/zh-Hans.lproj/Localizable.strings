@@ -1,0 +1,11 @@
+"network.error.invalid_url" = "无效的 URL";
+"network.error.invalid_request" = "无效的请求";
+"network.error.non_http_response" = "服务器未返回 HTTP 响应";
+"network.error.http_status" = "服务器返回了 HTTP 状态码 %ld";
+"network.error.unauthorized" = "登录已过期，请重新登录";
+"network.error.empty_response" = "服务器返回了空响应";
+"network.error.decoding_failed" = "响应解析失败：%@";
+"network.error.encoding_failed" = "请求编码失败：%@";
+"network.error.interceptor_failed" = "网络拦截器执行失败：%@";
+"network.error.transport_failed" = "网络传输失败：%@";
+"network.error.cancelled" = "请求已取消";

@@ -16,13 +16,18 @@ final class DemoViewModel: ObservableObject {
     @Published private(set) var message = "Choose a request to begin"
     @Published private(set) var isLoading = false
 
+    var localizedErrorExample: String {
+        let error = NetworkError.unauthorized(headers: [:], body: Data())
+        return error.localizedDescription(using: AppNetworkClient.shared.configuration.errorLocalizer)
+    }
+
     func loadRESTCharacter() {
         Task {
             beginLoading()
             do {
                 restCharacter = try await GetCharacterRequest(id: DemoConstants.characterID).execute()
                 graphQLCharacter = nil
-            } catch { message = error.localizedDescription }
+            } catch { message = localizedMessage(for: error) }
             isLoading = false
         }
     }
@@ -35,12 +40,17 @@ final class DemoViewModel: ObservableObject {
                 graphQLCharacter = response.data?.character
                 restCharacter = nil
                 if let error = response.errors?.first { message = error.message }
-            } catch { message = error.localizedDescription }
+            } catch { message = localizedMessage(for: error) }
             isLoading = false
         }
     }
 
     private func beginLoading() { message = "Loading…"; isLoading = true }
+
+    private func localizedMessage(for error: Error) -> String {
+        guard let networkError = error as? NetworkError else { return error.localizedDescription }
+        return networkError.localizedDescription(using: AppNetworkClient.shared.configuration.errorLocalizer)
+    }
 }
 
 private enum DemoConstants {
@@ -59,12 +69,46 @@ final class AppNetworkClient: NetworkClient, @unchecked Sendable {
     let interceptors: [any NetworkInterceptor] = []
     let configuration = NetworkConfiguration(
         timeoutInterval: DemoConstants.requestTimeout,
-        retryPolicy: RetryPolicy(maxAttempts: DemoConstants.retryAttempts)
+        retryPolicy: RetryPolicy(maxAttempts: DemoConstants.retryAttempts),
+        errorLocalizer: AppNetworkErrorLocalizer()
     )
 
     private init() {
         let configuration = URLSessionConfiguration.default
         self.session = URLSession(configuration: configuration)
+    }
+}
+
+struct AppNetworkErrorLocalizer: NetworkErrorLocalizing {
+    func message(for error: NetworkError, locale: Locale) -> String {
+        switch error {
+        case .invalidURL:
+            return localized("network.error.invalid_url", locale: locale)
+        case .invalidRequest:
+            return localized("network.error.invalid_request", locale: locale)
+        case .nonHTTPResponse:
+            return localized("network.error.non_http_response", locale: locale)
+        case let .http(statusCode, _, _):
+            return String(format: localized("network.error.http_status", locale: locale), statusCode)
+        case .unauthorized:
+            return localized("network.error.unauthorized", locale: locale)
+        case .emptyResponse:
+            return localized("network.error.empty_response", locale: locale)
+        case let .decodingFailed(message):
+            return String(format: localized("network.error.decoding_failed", locale: locale), message)
+        case let .encodingFailed(message):
+            return String(format: localized("network.error.encoding_failed", locale: locale), message)
+        case let .interceptorFailed(message):
+            return String(format: localized("network.error.interceptor_failed", locale: locale), message)
+        case let .transport(message):
+            return String(format: localized("network.error.transport_failed", locale: locale), message)
+        case .cancelled:
+            return localized("network.error.cancelled", locale: locale)
+        }
+    }
+
+    private func localized(_ key: String, locale: Locale) -> String {
+        String(localized: String.LocalizationValue(key), bundle: .main, locale: locale)
     }
 }
 

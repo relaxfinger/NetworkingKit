@@ -1,0 +1,11 @@
+"network.error.invalid_url" = "Invalid URL";
+"network.error.invalid_request" = "Invalid request";
+"network.error.non_http_response" = "The server did not return an HTTP response";
+"network.error.http_status" = "The server returned HTTP status %ld";
+"network.error.unauthorized" = "Unauthorized. Please sign in again";
+"network.error.empty_response" = "The server returned an empty response";
+"network.error.decoding_failed" = "Response decoding failed: %@";
+"network.error.encoding_failed" = "Request encoding failed: %@";
+"network.error.interceptor_failed" = "Network interceptor failed: %@";
+"network.error.transport_failed" = "Network transport failed: %@";
+"network.error.cancelled" = "Request cancelled";

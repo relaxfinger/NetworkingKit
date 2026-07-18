@@ -47,6 +47,15 @@ struct ContentView: View {
 
                 if model.isLoading { ProgressView() }
 
+                VStack(spacing: DemoLayout.localizationSpacing) {
+                    Text("Localized NetworkError")
+                        .font(.footnote.weight(.semibold))
+                    Text(model.localizedErrorExample)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                .multilineTextAlignment(.center)
+
                 Text("NativeNetwork on \(platformName)\nAppNetworkClient · AppRequest · REST · GraphQL")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
@@ -70,6 +79,7 @@ private enum DemoLayout {
     static let iconSize: CGFloat = 52
     static let verticalSpacing: CGFloat = 20
     static let resultSpacing: CGFloat = 6
+    static let localizationSpacing: CGFloat = 4
     static let maximumContentWidth: CGFloat = 420
 }
 
