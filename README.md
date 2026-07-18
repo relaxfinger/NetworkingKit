@@ -30,7 +30,7 @@ Add the package in Xcode through **File > Add Package Dependencies**, or declare
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/relaxfinger/NetworkingKit.git", from: "1.0.0")
+    .package(url: "https://github.com/relaxfinger/NetworkingKit.git", from: "2.0.0")
 ]
 ```
 
@@ -278,6 +278,17 @@ let message = networkError.localizedDescription(
 )
 ```
 
+For app-specific server error decoding or request correlation, use the structured HTTP context rather than parsing a localized message:
+
+```swift
+if let networkError = error as? NetworkError,
+   let statusCode = networkError.statusCode {
+    let requestID = networkError.responseHeaders?["X-Request-ID"]
+    let serverBody = networkError.responseBody
+    print(statusCode, requestID ?? "", serverBody?.count ?? 0)
+}
+```
+
 ## Demo
 
 Open `Examples/NetworkingKitDemo/NetworkingKitDemo.xcodeproj` and run either `NetworkingKitDemo-iOS` or `NetworkingKitDemo-macOS`. The demo contains REST, GraphQL, app-level configuration, a bilingual error localizer, and both built-in and custom interceptors.
@@ -285,3 +296,7 @@ Open `Examples/NetworkingKitDemo/NetworkingKitDemo.xcodeproj` and run either `Ne
 ## License
 
 MIT. See [LICENSE](LICENSE).
+
+## Contributing and security
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development and pull-request guidance, and [SECURITY.md](SECURITY.md) for responsible vulnerability reporting.

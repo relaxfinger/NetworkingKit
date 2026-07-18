@@ -11,3 +11,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: swift test
+
+  demo-build:
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - scheme: NetworkingKitDemo-iOS
+            sdk: iphonesimulator
+          - scheme: NetworkingKitDemo-macOS
+            sdk: macosx
+    steps:
+      - uses: actions/checkout@v4
+      - run: >-
+          xcodebuild
+          -project Examples/NetworkingKitDemo/NetworkingKitDemo.xcodeproj
+          -scheme ${{ matrix.scheme }}
+          -sdk ${{ matrix.sdk }}
+          -configuration Debug
+          build
+          CODE_SIGNING_ALLOWED=NO
