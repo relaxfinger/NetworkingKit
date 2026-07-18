@@ -7,6 +7,7 @@ All notable changes to NetworkingKit are documented in this file.
 ### Added
 
 - Actor-safe access-token refresh with single-flight coordination and one-time unauthorized request replay.
+- Vendor-neutral lifecycle observation, request correlation IDs, and actor-backed concurrent-attempt limiting.
 
 ## 2.0.0 - 2026-07-18
 

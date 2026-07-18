@@ -59,6 +59,28 @@ final class NetworkingKitTests: XCTestCase {
         XCTAssertEqual(user, User(id: "42", name: "Ada"))
     }
 
+    func testObserverReceivesRequestLifecycleAndCorrelationID() async throws {
+        let observer = EventRecorder()
+        let client = makeClient(observers: [observer]) { request in
+            let response = HTTPURLResponse(
+                url: try! XCTUnwrap(request.url),
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: nil
+            )!
+            return (response, #"{"id":"42","name":"Ada"}"#.data(using: .utf8)!)
+        }
+
+        _ = try await GetUserRequest(client: client, id: "42").execute()
+        let events = await observer.events
+
+        guard case let .started(context) = events.first else { return XCTFail("Expected start event") }
+        XCTAssertFalse(context.id.isEmpty)
+        guard case let .finished(_, outcome) = events.last else { return XCTFail("Expected finish event") }
+        XCTAssertEqual(outcome.statusCode, 200)
+        XCTAssertNil(outcome.error)
+    }
+
     func testExecuteMapsUnauthorizedResponse() async {
         let client = makeClient { request in
             (.init(url: try! XCTUnwrap(request.url), statusCode: 401, httpVersion: nil, headerFields: ["X-Request-ID": "trace-1"])!, Data())
@@ -192,6 +214,7 @@ final class NetworkingKitTests: XCTestCase {
         retryPolicy: RetryPolicy = .none,
         interceptors: [any NetworkInterceptor] = [],
         authentication: (any AuthenticationRefreshing)? = nil,
+        observers: [any NetworkObserving] = [],
         handler: @escaping StubTransport.Handler = { request in
         (.init(url: try! XCTUnwrap(request.url), statusCode: 200, httpVersion: nil, headerFields: nil)!, Data())
     }) -> TestClient {
@@ -200,6 +223,7 @@ final class NetworkingKitTests: XCTestCase {
             transport: StubTransport(handler: handler),
             interceptors: interceptors,
             authentication: authentication,
+            observers: observers,
             configuration: configuration ?? NetworkConfiguration(retryPolicy: retryPolicy)
         )
     }
@@ -288,12 +312,14 @@ private final class TestClient: NetworkClient, @unchecked Sendable {
     let transport: any NetworkTransport
     let interceptors: [any NetworkInterceptor]
     let authentication: (any AuthenticationRefreshing)?
+    let observers: [any NetworkObserving]
     let configuration: NetworkConfiguration
     init(
         baseURL: URL,
         transport: any NetworkTransport,
         interceptors: [any NetworkInterceptor],
         authentication: (any AuthenticationRefreshing)?,
+        observers: [any NetworkObserving],
         configuration: NetworkConfiguration
     ) {
         self.baseURL = baseURL
@@ -301,7 +327,16 @@ private final class TestClient: NetworkClient, @unchecked Sendable {
         self.transport = transport
         self.interceptors = interceptors
         self.authentication = authentication
+        self.observers = observers
         self.configuration = configuration
+    }
+}
+
+private actor EventRecorder: NetworkObserving {
+    private(set) var events: [NetworkEvent] = []
+
+    func record(_ event: NetworkEvent) async {
+        events.append(event)
     }
 }
 

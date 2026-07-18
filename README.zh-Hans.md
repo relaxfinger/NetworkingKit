@@ -82,6 +82,7 @@ final class AppNetworkClient: NetworkClient, @unchecked Sendable {
 
     var interceptors: [any NetworkInterceptor] {
         [
+            RequestIDInterceptor(),
             AppCommonHeadersInterceptor(),
             refreshingAuthentication,
             LoggingInterceptor(logBodies: false) { print($0) }
@@ -89,6 +90,8 @@ final class AppNetworkClient: NetworkClient, @unchecked Sendable {
     }
 
     var authentication: (any AuthenticationRefreshing)? { refreshingAuthentication }
+    let observers: [any NetworkObserving] = [AppNetworkObserver()]
+    let executionController: (any NetworkExecutionControlling)? = RequestConcurrencyLimiter(maximumConcurrentRequests: 6)
 
     private init() {
         session = URLSession(configuration: .default)
@@ -200,6 +203,25 @@ struct StubTransport: NetworkTransport {
 
 let transport: any NetworkTransport = StubTransport()
 ```
+
+### 可观测性与执行控制
+
+添加 `RequestIDInterceptor()` 后，每个请求都会携带 `X-Request-ID`。`NetworkObserving` 会收到每一次传输尝试的开始和结束事件，其中包含状态码、耗时，以及失败时结构化的 `NetworkError`。建议使用 actor 实现该协议，再将数据转发给 OSLog、OpenTelemetry 或自有埋点系统，且不会阻塞请求。
+
+```swift
+actor AppNetworkObserver: NetworkObserving {
+    func record(_ event: NetworkEvent) async {
+        switch event {
+        case let .started(context):
+            AppLogger.network.info("Started \(context.id)")
+        case let .finished(context, outcome):
+            AppLogger.network.info("Finished \(context.id), status: \(outcome.statusCode ?? 0)")
+        }
+    }
+}
+```
+
+将 `RequestConcurrencyLimiter` 配置为 Client 的 `executionController` 可限制同时进行的传输尝试数。重试和一次认证重放均会计入尝试次数，避免故障风暴耗尽设备或服务端资源。
 
 ### 内置拦截器
 
