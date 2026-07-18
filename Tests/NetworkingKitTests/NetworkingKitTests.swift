@@ -43,6 +43,22 @@ final class NetworkingKitTests: XCTestCase {
         _ = try await GetUserRequest(client: client, id: "42").execute()
     }
 
+    func testResponseInterceptorTransformsDataBeforeDecoding() async throws {
+        let client = makeClient(interceptors: [ResponseEnvelopeInterceptor()]) { request in
+            let response = HTTPURLResponse(
+                url: try! XCTUnwrap(request.url),
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: nil
+            )!
+            return (response, #"{"payload":{"id":"42","name":"Ada"}}"#.data(using: .utf8)!)
+        }
+
+        let user = try await GetUserRequest(client: client, id: "42").execute()
+
+        XCTAssertEqual(user, User(id: "42", name: "Ada"))
+    }
+
     func testExecuteMapsUnauthorizedResponse() async {
         let client = makeClient { request in
             (.init(url: try! XCTUnwrap(request.url), statusCode: 401, httpVersion: nil, headerFields: ["X-Request-ID": "trace-1"])!, Data())
@@ -142,15 +158,12 @@ final class NetworkingKitTests: XCTestCase {
         configuration: NetworkConfiguration? = nil,
         retryPolicy: RetryPolicy = .none,
         interceptors: [any NetworkInterceptor] = [],
-        handler: @escaping URLProtocolStub.Handler = { request in
+        handler: @escaping StubTransport.Handler = { request in
         (.init(url: try! XCTUnwrap(request.url), statusCode: 200, httpVersion: nil, headerFields: nil)!, Data())
     }) -> TestClient {
-        URLProtocolStub.handler = handler
-        let sessionConfiguration = URLSessionConfiguration.ephemeral
-        sessionConfiguration.protocolClasses = [URLProtocolStub.self]
         return TestClient(
             baseURL: URL(string: "https://example.com/api")!,
-            session: URLSession(configuration: sessionConfiguration),
+            transport: StubTransport(handler: handler),
             interceptors: interceptors,
             configuration: configuration ?? NetworkConfiguration(retryPolicy: retryPolicy)
         )
@@ -175,6 +188,24 @@ private struct CommonHeadersInterceptor: NetworkInterceptor {
         request.setValue("iOS", forHTTPHeaderField: "X-Client-Platform")
         return request
     }
+}
+
+private struct ResponseEnvelopeInterceptor: NetworkInterceptor {
+    func transform(response: URLResponse, data: Data) async throws -> Data {
+        try JSONDecoder().decode(ResponseEnvelope.self, from: data).payload
+    }
+}
+
+private struct ResponseEnvelope: Decodable {
+    let payload: Data
+
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let payload = try container.decode(User.self, forKey: .payload)
+        self.payload = try JSONEncoder().encode(payload)
+    }
+
+    private enum CodingKeys: String, CodingKey { case payload }
 }
 
 private struct GetUserRequest: RestfulRequest {
@@ -219,11 +250,13 @@ private struct UserGraphQLRequest: GraphQLRequest {
 private final class TestClient: NetworkClient, @unchecked Sendable {
     let baseURL: URL
     let session: URLSession
+    let transport: any NetworkTransport
     let interceptors: [any NetworkInterceptor]
     let configuration: NetworkConfiguration
-    init(baseURL: URL, session: URLSession, interceptors: [any NetworkInterceptor], configuration: NetworkConfiguration) {
+    init(baseURL: URL, transport: any NetworkTransport, interceptors: [any NetworkInterceptor], configuration: NetworkConfiguration) {
         self.baseURL = baseURL
-        self.session = session
+        self.session = .shared
+        self.transport = transport
         self.interceptors = interceptors
         self.configuration = configuration
     }
@@ -236,18 +269,12 @@ private final class AttemptCounter: @unchecked Sendable {
     var value: Int { lock.lock(); defer { lock.unlock() }; return attempts }
 }
 
-private final class URLProtocolStub: URLProtocol, @unchecked Sendable {
+private struct StubTransport: NetworkTransport {
     typealias Handler = @Sendable (URLRequest) -> (HTTPURLResponse, Data)
-    nonisolated(unsafe) static var handler: Handler?
+    let handler: Handler
 
-    override class func canInit(with request: URLRequest) -> Bool { true }
-    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
-    override func startLoading() {
-        guard let handler = Self.handler else { return }
+    func send(_ request: URLRequest) async throws -> (Data, URLResponse) {
         let (response, data) = handler(request)
-        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
-        client?.urlProtocol(self, didLoad: data)
-        client?.urlProtocolDidFinishLoading(self)
+        return (data, response)
     }
-    override func stopLoading() {}
 }

@@ -34,12 +34,19 @@ private func performRequest<Request: NetworkRequest>(_ request: Request) async t
 
     let data: Data
     let response: URLResponse
-    do { (data, response) = try await request.client.session.data(for: urlRequest) }
+    do { (data, response) = try await request.client.transport.send(urlRequest) }
     catch is CancellationError { throw NetworkError.cancelled }
     catch let error as URLError where error.code == .cancelled { throw NetworkError.cancelled }
     catch { throw NetworkError.transport(message: error.localizedDescription) }
 
-    do { for interceptor in request.client.interceptors { try await interceptor.intercept(response: response, data: data) } }
+    let transformedData: Data
+    do {
+        var currentData = data
+        for interceptor in request.client.interceptors.reversed() {
+            currentData = try await interceptor.transform(response: response, data: currentData)
+        }
+        transformedData = currentData
+    }
     catch { throw NetworkError.interceptorFailed(message: error.localizedDescription) }
     guard let httpResponse = response as? HTTPURLResponse else { throw NetworkError.nonHTTPResponse }
     guard NetworkConstants.HTTPStatus.successRange.contains(httpResponse.statusCode) else {
@@ -47,14 +54,14 @@ private func performRequest<Request: NetworkRequest>(_ request: Request) async t
             guard let key = element.key as? String else { return nil }
             return (key, String(describing: element.value))
         })
-        if httpResponse.statusCode == NetworkConstants.HTTPStatus.unauthorized { throw NetworkError.unauthorized(headers: headers, body: data) }
-        throw NetworkError.http(statusCode: httpResponse.statusCode, headers: headers, body: data)
+        if httpResponse.statusCode == NetworkConstants.HTTPStatus.unauthorized { throw NetworkError.unauthorized(headers: headers, body: transformedData) }
+        throw NetworkError.http(statusCode: httpResponse.statusCode, headers: headers, body: transformedData)
     }
-    guard !data.isEmpty else {
+    guard !transformedData.isEmpty else {
         guard Request.Response.self == EmptyResponse.self else { throw NetworkError.emptyResponse }
         return EmptyResponse() as! Request.Response
     }
-    do { return try request.client.decoder.decode(Request.Response.self, from: data) }
+    do { return try request.client.makeDecoder().decode(Request.Response.self, from: transformedData) }
     catch { throw NetworkError.decodingFailed(message: error.localizedDescription) }
 }
 
@@ -71,11 +78,11 @@ public extension NetworkRequest {
         request.timeoutInterval = timeoutInterval
         headers?.forEach { request.setValue($0.value, forHTTPHeaderField: $0.key) }
         if let rest = self as? any RestfulRequest, let body = rest.body {
-            do { request.httpBody = try client.encoder.encode(body) }
+            do { request.httpBody = try client.makeEncoder().encode(body) }
             catch { throw NetworkError.encodingFailed(message: error.localizedDescription) }
             if request.value(forHTTPHeaderField: "Content-Type") == nil { request.setValue(rest.contentType ?? "application/json", forHTTPHeaderField: "Content-Type") }
         } else if let gql = self as? any GraphQLRequest {
-            do { request.httpBody = try client.encoder.encode(GraphQLBody(query: gql.query, variables: gql.variables, operationName: gql.operationName)) }
+            do { request.httpBody = try client.makeEncoder().encode(GraphQLBody(query: gql.query, variables: gql.variables, operationName: gql.operationName)) }
             catch { throw NetworkError.encodingFailed(message: error.localizedDescription) }
         }
         return request
