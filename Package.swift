@@ -1,3 +1,11 @@
+//
+//  Package.swift
+//  NativeNetwork
+//
+//  Copyright (c) 2026 NativeNetwork contributors.
+//  Licensed under the MIT License. See LICENSE in the project root for license information.
+//
+
 // swift-tools-version: 6.0
 import PackageDescription
 

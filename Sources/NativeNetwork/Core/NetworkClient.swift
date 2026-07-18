@@ -1,3 +1,11 @@
+//
+//  NetworkClient.swift
+//  NativeNetwork
+//
+//  Copyright (c) 2026 NativeNetwork contributors.
+//  Licensed under the MIT License. See LICENSE in the project root for license information.
+//
+
 import Foundation
 
 /// 网络客户端协议

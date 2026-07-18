@@ -1,3 +1,11 @@
+//
+//  GraphQLRequest.swift
+//  NativeNetwork
+//
+//  Copyright (c) 2026 NativeNetwork contributors.
+//  Licensed under the MIT License. See LICENSE in the project root for license information.
+//
+
 import Foundation
 
 /// GraphQL 标准响应 envelope。GraphQL 允许 `data` 与 `errors` 同时存在，调用方可按业务决定是否采用部分数据。

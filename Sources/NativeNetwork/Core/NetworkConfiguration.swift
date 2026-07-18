@@ -1,3 +1,11 @@
+//
+//  NetworkConfiguration.swift
+//  NativeNetwork
+//
+//  Copyright (c) 2026 NativeNetwork contributors.
+//  Licensed under the MIT License. See LICENSE in the project root for license information.
+//
+
 import Foundation
 
 /// 一个 `NetworkClient` 实例的默认请求策略。

@@ -1,3 +1,11 @@
+//
+//  RestfulRequest.swift
+//  NativeNetwork
+//
+//  Copyright (c) 2026 NativeNetwork contributors.
+//  Licensed under the MIT License. See LICENSE in the project root for license information.
+//
+
 import Foundation
 
 /// RESTful 请求协议

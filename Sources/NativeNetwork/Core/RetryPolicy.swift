@@ -1,3 +1,11 @@
+//
+//  RetryPolicy.swift
+//  NativeNetwork
+//
+//  Copyright (c) 2026 NativeNetwork contributors.
+//  Licensed under the MIT License. See LICENSE in the project root for license information.
+//
+
 import Foundation
 
 /// 针对临时故障的指数退避策略。默认不重试，避免在非幂等请求上产生意外副作用。

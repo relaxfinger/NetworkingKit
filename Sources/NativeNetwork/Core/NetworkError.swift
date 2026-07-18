@@ -1,3 +1,11 @@
+//
+//  NetworkError.swift
+//  NativeNetwork
+//
+//  Copyright (c) 2026 NativeNetwork contributors.
+//  Licensed under the MIT License. See LICENSE in the project root for license information.
+//
+
 import Foundation
 
 /// 网络层统一错误类型。HTTP 错误保留原始 body 与 headers，便于解析服务端错误和请求追踪 ID。

@@ -1,3 +1,11 @@
+//
+//  AnyEncodable.swift
+//  NativeNetwork
+//
+//  Copyright (c) 2026 NativeNetwork contributors.
+//  Licensed under the MIT License. See LICENSE in the project root for license information.
+//
+
 import Foundation
 
 /// 支持任意 Encodable 类型的包装，方便 GraphQL variables 使用
