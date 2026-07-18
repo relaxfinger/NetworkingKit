@@ -259,6 +259,8 @@ let delegate = ServerTrustSessionDelegate(evaluator: evaluator)
 let session = URLSession(configuration: .default, delegate: delegate, delegateQueue: nil)
 ```
 
+证书轮换时可使用 `PublicKeyHashPinningEvaluator`，它接受叶子证书公钥 bytes 的 SHA-256 哈希。在切换证书前，请同时在 `pinnedHashes` 中保留当前和备份哈希。
+
 ### 断路器
 
 使用 `CircuitBreakingTransport` 包装 Transport，可在上游连续失败时快速拒绝请求，避免持续冲击异常服务。它可与 `RequestConcurrencyLimiter` 组合，分别限制故障放大和并发负载。

@@ -278,6 +278,8 @@ let delegate = ServerTrustSessionDelegate(evaluator: evaluator)
 let session = URLSession(configuration: .default, delegate: delegate, delegateQueue: nil)
 ```
 
+For certificate rotation, `PublicKeyHashPinningEvaluator` accepts SHA-256 hashes of the leaf public-key bytes. Keep both the active and backup hashes in `pinnedHashes` before switching certificates.
+
 ### Circuit breaker
 
 Wrap a transport with `CircuitBreakingTransport` to stop repeated failures from overwhelming an unhealthy service. Combine it with `RequestConcurrencyLimiter` to limit both failure amplification and concurrent load.
