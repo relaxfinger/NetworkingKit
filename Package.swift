@@ -5,7 +5,7 @@ let package = Package(
     name: "NativeNetwork",
     platforms: [
         .iOS(.v17),
-        .macOS(.v13),
+        .macOS(.v14),
         .tvOS(.v15),
         .watchOS(.v8)
     ],

@@ -9,7 +9,7 @@
 - Swift 6 strict concurrency（Sendable、Actor 友好）
 - 可配置 JSON 编解码、退避重试与默认脱敏日志
 
-**平台要求：iOS 17+、macOS 13+、tvOS 15+、watchOS 8+。**
+**平台要求：iOS 17+、macOS 14+、tvOS 15+、watchOS 8+。**
 
 ## 安装
 
