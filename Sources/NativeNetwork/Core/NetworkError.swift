@@ -26,17 +26,17 @@ public enum NetworkError: LocalizedError, Sendable {
 
     public var errorDescription: String? {
         switch self {
-        case .invalidURL: return "无效的 URL"
-        case .invalidRequest: return "无效的请求"
-        case .nonHTTPResponse: return "服务器没有返回 HTTP 响应"
-        case let .http(statusCode, _, _): return "服务器响应错误，状态码: \(statusCode)"
-        case .unauthorized: return "未授权，请重新登录"
-        case .emptyResponse: return "服务器没有返回数据"
-        case let .decodingFailed(message): return "数据解析失败: \(message)"
-        case let .encodingFailed(message): return "数据编码失败: \(message)"
-        case let .interceptorFailed(message): return "拦截器执行失败: \(message)"
-        case let .transport(message): return "网络传输失败: \(message)"
-        case .cancelled: return "请求已取消"
+        case .invalidURL: return "Invalid URL"
+        case .invalidRequest: return "Invalid request"
+        case .nonHTTPResponse: return "The server did not return an HTTP response"
+        case let .http(statusCode, _, _): return "The server returned HTTP status \(statusCode)"
+        case .unauthorized: return "Unauthorized. Please sign in again"
+        case .emptyResponse: return "The server returned an empty response"
+        case let .decodingFailed(message): return "Response decoding failed: \(message)"
+        case let .encodingFailed(message): return "Request encoding failed: \(message)"
+        case let .interceptorFailed(message): return "Network interceptor failed: \(message)"
+        case let .transport(message): return "Network transport failed: \(message)"
+        case .cancelled: return "Request cancelled"
         }
     }
 }
