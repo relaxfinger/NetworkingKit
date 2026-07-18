@@ -25,6 +25,16 @@ dependencies: [
 
 ## 快速开始
 
+## 可运行 Demo
+
+仓库包含一个不依赖 API Key 的 REST + GraphQL 命令行示例：
+
+```bash
+swift run NativeNetworkDemo
+```
+
+示例使用 JSONPlaceholder 与 Rick and Morty GraphQL API，仅用于学习和本地验证；生产应用应使用自己的后端地址、认证与日志策略。
+
 ### 1. 实现自己的 NetworkClient
 
 ```swift

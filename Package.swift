@@ -20,6 +20,11 @@ let package = Package(
             name: "NativeNetwork",
             path: "Sources/NativeNetwork"
         ),
+        .executableTarget(
+            name: "NativeNetworkDemo",
+            dependencies: ["NativeNetwork"],
+            path: "Examples/NativeNetworkDemo"
+        ),
         .testTarget(
             name: "NativeNetworkTests",
             dependencies: ["NativeNetwork"],
