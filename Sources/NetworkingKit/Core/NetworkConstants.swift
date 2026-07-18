@@ -30,6 +30,8 @@ public enum NetworkConstants {
         public static let minimumDelay: TimeInterval = 0
         public static let defaultInitialDelay: TimeInterval = 0.25
         public static let defaultMultiplier = 2.0
+        public static let defaultMaximumDelay: TimeInterval = 30
+        public static let defaultJitterRatio = 0.2
         public static let firstAttempt = 1
         public static let nanosecondsPerSecond = 1_000_000_000.0
     }
