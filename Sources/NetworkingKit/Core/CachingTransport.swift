@@ -20,28 +20,69 @@ public enum NetworkCachePolicy: Sendable, Equatable {
 
 /// Stores cached transport responses.
 public protocol NetworkResponseCaching: Sendable {
-    func response(for key: String) async -> (Data, HTTPURLResponse)?
-    func store(_ data: Data, response: HTTPURLResponse, for key: String) async
+    func entry(for key: String) async -> CachedHTTPResponse?
+    func store(_ entry: CachedHTTPResponse, for key: String) async
+}
+
+/// A cached HTTP response with its expiry and revalidation metadata.
+public struct CachedHTTPResponse: Sendable, Codable {
+    public let data: Data
+    public let url: URL
+    public let statusCode: Int
+    public let headers: [String: String]
+    public let expiresAt: Date
+    public let eTag: String?
+
+    public var isFresh: Bool { expiresAt > Date() }
+
+    func makeResponse() -> HTTPURLResponse {
+        HTTPURLResponse(url: url, statusCode: statusCode, httpVersion: nil, headerFields: headers)!
+    }
 }
 
 /// A bounded, actor-backed in-memory response cache.
 public actor InMemoryResponseCache: NetworkResponseCaching {
     private let capacity: Int
-    private var values: [String: (Data, HTTPURLResponse)] = [:]
+    private var values: [String: CachedHTTPResponse] = [:]
     private var keys: [String] = []
 
     public init(capacity: Int = 100) { self.capacity = max(1, capacity) }
 
-    public func response(for key: String) async -> (Data, HTTPURLResponse)? { values[key] }
+    public func entry(for key: String) async -> CachedHTTPResponse? { values[key] }
 
-    public func store(_ data: Data, response: HTTPURLResponse, for key: String) async {
+    public func store(_ entry: CachedHTTPResponse, for key: String) async {
         if values[key] == nil, keys.count >= capacity, let oldest = keys.first {
             values.removeValue(forKey: oldest)
             keys.removeFirst()
         }
         keys.removeAll { $0 == key }
         keys.append(key)
-        values[key] = (data, response)
+        values[key] = entry
+    }
+}
+
+/// A JSON-backed cache that persists entries across app launches.
+public actor DiskResponseCache: NetworkResponseCaching {
+    private let directory: URL
+
+    public init(directory: URL) {
+        self.directory = directory
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    }
+
+    public func entry(for key: String) async -> CachedHTTPResponse? {
+        guard let data = try? Data(contentsOf: fileURL(for: key)) else { return nil }
+        return try? JSONDecoder().decode(CachedHTTPResponse.self, from: data)
+    }
+
+    public func store(_ entry: CachedHTTPResponse, for key: String) async {
+        guard let data = try? JSONEncoder().encode(entry) else { return }
+        try? data.write(to: fileURL(for: key), options: .atomic)
+    }
+
+    private func fileURL(for key: String) -> URL {
+        let name = Data(key.utf8).base64EncodedString().replacingOccurrences(of: "/", with: "_")
+        return directory.appendingPathComponent(name).appendingPathExtension("json")
     }
 }
 
@@ -50,31 +91,54 @@ public struct CachingTransport: NetworkTransport {
     public let upstream: any NetworkTransport
     public let cache: any NetworkResponseCaching
     public let policy: NetworkCachePolicy
+    public let defaultTTL: TimeInterval
 
-    public init(upstream: any NetworkTransport, cache: any NetworkResponseCaching, policy: NetworkCachePolicy = .returnCacheElseLoad) {
+    public init(upstream: any NetworkTransport, cache: any NetworkResponseCaching, policy: NetworkCachePolicy = .returnCacheElseLoad, defaultTTL: TimeInterval = 300) {
         self.upstream = upstream
         self.cache = cache
         self.policy = policy
+        self.defaultTTL = max(0, defaultTTL)
     }
 
     public func send(_ request: URLRequest) async throws -> (Data, URLResponse) {
         let key = cacheKey(for: request)
-        if request.httpMethod == HTTPMethod.get.rawValue, policy != .networkOnly,
-           let cached = await cache.response(for: key) {
-            return cached
-        }
+        let cached = request.httpMethod == HTTPMethod.get.rawValue ? await cache.entry(for: key) : nil
+        if policy == .returnCacheDontLoad, let cached { return (cached.data, cached.makeResponse()) }
         guard policy != .returnCacheDontLoad else { throw CacheMissError() }
+        if policy == .returnCacheElseLoad, let cached, cached.isFresh { return (cached.data, cached.makeResponse()) }
+
+        var request = request
+        if let eTag = cached?.eTag { request.setValue(eTag, forHTTPHeaderField: "If-None-Match") }
         let result = try await upstream.send(request)
+        if let response = result.1 as? HTTPURLResponse, response.statusCode == 304, let cached {
+            let refreshed = makeEntry(data: cached.data, response: response, fallbackURL: cached.url)
+            await cache.store(refreshed, for: key)
+            return (cached.data, refreshed.makeResponse())
+        }
         if request.httpMethod == HTTPMethod.get.rawValue,
            let response = result.1 as? HTTPURLResponse,
            NetworkConstants.HTTPStatus.successRange.contains(response.statusCode) {
-            await cache.store(result.0, response: response, for: key)
+            await cache.store(makeEntry(data: result.0, response: response, fallbackURL: request.url), for: key)
         }
         return result
     }
 
     private func cacheKey(for request: URLRequest) -> String {
         "\(request.httpMethod ?? HTTPMethod.get.rawValue) \(request.url?.absoluteString ?? "")"
+    }
+
+    private func makeEntry(data: Data, response: HTTPURLResponse, fallbackURL: URL?) -> CachedHTTPResponse {
+        let headers = response.allHeaderFields.reduce(into: [String: String]()) { result, item in
+            if let key = item.key as? String { result[key] = String(describing: item.value) }
+        }
+        let cacheControl = headers.first { $0.key.caseInsensitiveCompare("Cache-Control") == .orderedSame }?.value
+        let directive = cacheControl?.split(separator: ",").first {
+            $0.trimmingCharacters(in: .whitespaces).hasPrefix("max-age=")
+        }
+        let maxAgeValue = directive?.split(separator: "=").last.map(String.init)
+        let maxAge = maxAgeValue.flatMap(TimeInterval.init) ?? defaultTTL
+        let eTag = headers.first { $0.key.caseInsensitiveCompare("ETag") == .orderedSame }?.value
+        return CachedHTTPResponse(data: data, url: response.url ?? fallbackURL!, statusCode: response.statusCode, headers: headers, expiresAt: Date().addingTimeInterval(maxAge), eTag: eTag)
     }
 }
 

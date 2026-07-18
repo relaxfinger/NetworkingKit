@@ -255,6 +255,15 @@ let transport = CachingTransport(
 )
 ```
 
+For cache survival across launches and standards-based revalidation, use `DiskResponseCache`. Expired entries automatically send `If-None-Match` when an ETag is available; a `304 Not Modified` response reuses the local body and refreshes its TTL.
+
+```swift
+let directory = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+    .appendingPathComponent("NetworkingKitCache")
+let cache = DiskResponseCache(directory: directory)
+let transport = CachingTransport(upstream: URLSessionTransport(session: session), cache: cache)
+```
+
 NetworkingKit deliberately leaves certificate pinning and trust policy to the app-owned `URLSession` or a custom `NetworkTransport`. Configure a `URLSessionDelegate` for server-trust evaluation, then inject that session into `URLSessionTransport`; this keeps security policy auditable and specific to the app’s domains and rotation process.
 
 ### Built-in interceptors

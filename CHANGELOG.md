@@ -9,6 +9,7 @@ All notable changes to NetworkingKit are documented in this file.
 - Actor-safe access-token refresh with single-flight coordination and one-time unauthorized request replay.
 - Vendor-neutral lifecycle observation, request correlation IDs, and actor-backed concurrent-attempt limiting.
 - Composable in-memory response caching with cache-first and offline cache-only transport policies.
+- Persistent disk cache with `Cache-Control` TTL, ETag validation, and `304 Not Modified` reuse.
 
 ## 2.0.0 - 2026-07-18
 
