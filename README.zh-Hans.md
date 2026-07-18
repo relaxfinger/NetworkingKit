@@ -38,7 +38,7 @@ dependencies: [
 
 ### 1. 实现 App 的 `NetworkClient`
 
-App 通过一个 `NetworkClient` 集中管理基础地址、`URLSession`、解码器、拦截器和默认策略。
+App 通过一个 `NetworkClient` 集中管理基础地址、`URLSession`、传输层、编解码器工厂、拦截器和默认策略。
 
 ```swift
 import Foundation
@@ -63,7 +63,6 @@ final class AppNetworkClient: NetworkClient, @unchecked Sendable {
 
     let baseURL = URL(string: "https://api.example.com")!
     let session: URLSession
-    let decoder: JSONDecoder
     let configuration = AppNetworkConfiguration.production
     let interceptors: [any NetworkInterceptor] = [
         AppCommonHeadersInterceptor(),
@@ -73,13 +72,17 @@ final class AppNetworkClient: NetworkClient, @unchecked Sendable {
 
     private init() {
         session = URLSession(configuration: .default)
-        decoder = JSONDecoder()
+    }
+
+    func makeDecoder() -> JSONDecoder {
+        let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
+        return decoder
     }
 }
 ```
 
-`NetworkConfiguration` 是不可变的 Client 级默认值；单个 Request 仍可覆盖 `timeoutInterval`。通用 Header、认证、请求签名、日志和埋点应统一在 `interceptors` 中配置，不应放在 `AppRequest`。
+`NetworkConfiguration` 是不可变的 Client 级默认值；单个 Request 仍可覆盖 `timeoutInterval`。`makeEncoder()` 和 `makeDecoder()` 会为每次操作创建独立的编解码器，避免共享可变配置。通用 Header、认证、请求签名、日志和埋点应统一在 `interceptors` 中配置，不应放在 `AppRequest`。
 
 ### 2. 创建 App Request 基类
 
@@ -161,7 +164,22 @@ GetUserRequest()
 
 `NetworkInterceptor` 用于处理跨请求的逻辑，例如认证、公共 Header、签名、日志、埋点、响应观察和测试 mock。
 
-拦截器按数组声明顺序执行：`adapt(_:)` 在 `URLSession` 发送请求之前执行，`intercept(response:data:)` 在接收响应之后、HTTP 状态码校验和解码之前执行。任一方法抛错都会转换为 `NetworkError.interceptorFailed`。
+拦截器在请求阶段按数组声明顺序执行：`adapt(_:)` 在配置的 `NetworkTransport` 发送请求之前执行。响应阶段则按反向顺序执行 `transform(response:data:)`，位于 HTTP 状态码校验和解码之前，可用于观察、校验或替换响应数据。任一方法抛错都会转换为 `NetworkError.interceptorFailed`。
+
+### 自定义传输层
+
+默认实现为 `URLSessionTransport`。可覆盖 Client 的 `transport`，以支持确定性测试或自定义网络栈，而无需改动请求定义：
+
+```swift
+struct StubTransport: NetworkTransport {
+    func send(_ request: URLRequest) async throws -> (Data, URLResponse) {
+        let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
+        return (#"{"id":"42","name":"Ada"}"#.data(using: .utf8)!, response)
+    }
+}
+
+let transport: any NetworkTransport = StubTransport()
+```
 
 ### 内置拦截器
 

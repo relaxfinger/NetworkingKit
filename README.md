@@ -40,7 +40,7 @@ Then add `NetworkingKit` to the target dependencies that use it.
 
 ### 1. Create an app client
 
-An app owns its base URL, `URLSession`, interceptors, decoders, and default configuration in one `NetworkClient` implementation.
+An app owns its base URL, `URLSession`, transport, interceptors, codec factories, and default configuration in one `NetworkClient` implementation.
 
 ```swift
 import Foundation
@@ -65,7 +65,6 @@ final class AppNetworkClient: NetworkClient, @unchecked Sendable {
 
     let baseURL = URL(string: "https://api.example.com")!
     let session: URLSession
-    let decoder: JSONDecoder
     let configuration = AppNetworkConfiguration.production
     let interceptors: [any NetworkInterceptor] = [
         AppCommonHeadersInterceptor(),
@@ -77,13 +76,17 @@ final class AppNetworkClient: NetworkClient, @unchecked Sendable {
         let sessionConfiguration = URLSessionConfiguration.default
         session = URLSession(configuration: sessionConfiguration)
 
-        decoder = JSONDecoder()
+    }
+
+    func makeDecoder() -> JSONDecoder {
+        let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
+        return decoder
     }
 }
 ```
 
-`NetworkConfiguration` is immutable and scoped to one client. A request can still override `timeoutInterval` when a specific endpoint needs a different timeout. Configure app-wide headers, authentication, request signing, logging, and metrics in `interceptors`; do not add them to `AppRequest`.
+`NetworkConfiguration` is immutable and scoped to one client. A request can still override `timeoutInterval` when a specific endpoint needs a different timeout. `makeEncoder()` and `makeDecoder()` create a fresh codec per operation, avoiding shared mutable codec configuration. Configure app-wide headers, authentication, request signing, logging, and metrics in `interceptors`; do not add them to `AppRequest`.
 
 ### 2. Add an app request base class
 
@@ -180,7 +183,22 @@ GetUserRequest()
 
 `NetworkInterceptor` handles behavior that should apply consistently across requests: authentication, headers, request signing, logging, response observation, metrics, and test stubs.
 
-Interceptors run in declaration order. `adapt(_:)` runs before `URLSession` sends the request. `intercept(response:data:)` runs after a response is received and before HTTP status validation and decoding. Throwing from either method produces `NetworkError.interceptorFailed`.
+Interceptors run in declaration order on the way out: `adapt(_:)` runs before the configured `NetworkTransport` sends the request. `transform(response:data:)` runs in reverse declaration order on the way back, before HTTP status validation and decoding. It can inspect, validate, or replace the response data. Throwing from either method produces `NetworkError.interceptorFailed`.
+
+### Custom transport
+
+`URLSessionTransport` is the default. Override `transport` for deterministic tests or a custom stack while keeping request definitions unchanged:
+
+```swift
+struct StubTransport: NetworkTransport {
+    func send(_ request: URLRequest) async throws -> (Data, URLResponse) {
+        let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
+        return (#"{"id":"42","name":"Ada"}"#.data(using: .utf8)!, response)
+    }
+}
+
+let transport: any NetworkTransport = StubTransport()
+```
 
 ### Built-in interceptors
 

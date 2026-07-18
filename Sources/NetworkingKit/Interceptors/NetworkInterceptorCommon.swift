@@ -40,10 +40,11 @@ public struct LoggingInterceptor: NetworkInterceptor {
         return request
     }
     
-    public func intercept(response: URLResponse, data: Data) async throws {
-        guard let http = response as? HTTPURLResponse else { return }
+    public func transform(response: URLResponse, data: Data) async throws -> Data {
+        guard let http = response as? HTTPURLResponse else { return data }
         logger("✅ [Response] Status: \(http.statusCode) \(http.url?.absoluteString ?? "")")
         log(body: data, label: "Response body")
+        return data
     }
     
     private func log(body: Data?, label: String) {

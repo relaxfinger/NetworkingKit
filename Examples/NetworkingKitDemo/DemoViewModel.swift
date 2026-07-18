@@ -89,6 +89,12 @@ final class AppNetworkClient: NetworkClient, @unchecked Sendable {
         let configuration = URLSessionConfiguration.default
         self.session = URLSession(configuration: configuration)
     }
+
+    func makeDecoder() -> JSONDecoder {
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        return decoder
+    }
 }
 
 /// Demonstrates app-wide request headers configured once on the network client.
