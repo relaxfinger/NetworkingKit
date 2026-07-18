@@ -45,7 +45,8 @@ final class AppNetworkClient: NetworkClient, @unchecked Sendable {
     let decoder: JSONDecoder
     let configuration = NetworkConfiguration(
         timeoutInterval: 15,
-        retryPolicy: RetryPolicy(maxAttempts: 3)
+        retryPolicy: RetryPolicy(maxAttempts: 3),
+        errorLocalizer: AppNetworkErrorLocalizer()
     )
     
     private init() {
@@ -60,6 +61,39 @@ final class AppNetworkClient: NetworkClient, @unchecked Sendable {
 ```
 
 `NetworkConfiguration` 是 Client 实例级默认策略；业务 Request 仍可重写 `timeoutInterval`。`RetryPolicy` 默认不重试；只会重试 408、429、5xx 及传输错误。对带副作用的 POST/PUT，请仅在服务端具备幂等键时启用重试。`LoggingInterceptor` 默认不记录 body，并会脱敏 Authorization、Cookie 与 API Key。
+
+### 错误本地化
+
+`NetworkError` 保持为稳定的错误模型，显示文案由 App 注入 `NetworkErrorLocalizing` 决定。以下实现可使用 App 自己的 `Localizable.strings`，并支持按传入的 `Locale` 切换语言：
+
+```swift
+struct AppNetworkErrorLocalizer: NetworkErrorLocalizing {
+    func message(for error: NetworkError, locale: Locale) -> String {
+        switch error {
+        case .invalidURL:
+            return String(localized: "network.error.invalid_url", bundle: .main, locale: locale)
+        case .unauthorized:
+            return String(localized: "network.error.unauthorized", bundle: .main, locale: locale)
+        case let .http(statusCode, _, _):
+            return String(
+                format: String(localized: "network.error.http_status", bundle: .main, locale: locale),
+                statusCode
+            )
+        default:
+            return String(localized: "network.error.generic", bundle: .main, locale: locale)
+        }
+    }
+}
+```
+
+在展示错误时使用 Client 的本地化器：
+
+```swift
+let message = error.localizedDescription(
+    using: AppNetworkClient.shared.configuration.errorLocalizer,
+    locale: .current
+)
+```
 
 ### 2. App Request 基类（推荐）
 

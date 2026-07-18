@@ -88,6 +88,19 @@ final class NativeNetworkTests: XCTestCase {
         XCTAssertEqual(try request.buildURLRequest().timeoutInterval, expectedTimeout)
     }
 
+    func testNetworkErrorUsesConfiguredLocalizer() {
+        let configuration = NetworkConfiguration(errorLocalizer: TestNetworkErrorLocalizer())
+        let error = NetworkError.unauthorized(headers: [:], body: Data())
+
+        XCTAssertEqual(
+            error.localizedDescription(
+                using: configuration.errorLocalizer,
+                locale: Locale(identifier: "zh-Hans")
+            ),
+            "登录已过期，请重新登录"
+        )
+    }
+
     private func makeClient(
         configuration: NetworkConfiguration? = nil,
         retryPolicy: RetryPolicy = .none,
@@ -107,6 +120,15 @@ final class NativeNetworkTests: XCTestCase {
 
 private struct User: Codable, Equatable, Sendable { let id: String; let name: String }
 private struct CreateUserBody: Codable, Sendable { let name: String }
+
+private struct TestNetworkErrorLocalizer: NetworkErrorLocalizing {
+    func message(for error: NetworkError, locale: Locale) -> String {
+        switch error {
+        case .unauthorized: return "登录已过期，请重新登录"
+        default: return "网络请求失败"
+        }
+    }
+}
 
 private struct GetUserRequest: RestfulRequest {
     typealias Response = User

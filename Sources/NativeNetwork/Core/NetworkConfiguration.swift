@@ -14,13 +14,16 @@ import Foundation
 public struct NetworkConfiguration: Sendable {
     public let timeoutInterval: TimeInterval
     public let retryPolicy: RetryPolicy
+    public let errorLocalizer: any NetworkErrorLocalizing
 
     public init(
         timeoutInterval: TimeInterval = NetworkConstants.Timeout.defaultInterval,
-        retryPolicy: RetryPolicy = .none
+        retryPolicy: RetryPolicy = .none,
+        errorLocalizer: any NetworkErrorLocalizing = DefaultNetworkErrorLocalizer()
     ) {
         self.timeoutInterval = max(NetworkConstants.Retry.minimumDelay, timeoutInterval)
         self.retryPolicy = retryPolicy
+        self.errorLocalizer = errorLocalizer
     }
 
     public static let `default` = NetworkConfiguration()

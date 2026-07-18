@@ -24,19 +24,18 @@ public enum NetworkError: LocalizedError, Sendable {
     case transport(message: String)
     case cancelled
 
+    /// Returns an English fallback description.
+    ///
+    /// To display an app-localized message, use `localizedDescription(using:locale:)` with the localizer configured on a `NetworkClient`.
     public var errorDescription: String? {
-        switch self {
-        case .invalidURL: return "Invalid URL"
-        case .invalidRequest: return "Invalid request"
-        case .nonHTTPResponse: return "The server did not return an HTTP response"
-        case let .http(statusCode, _, _): return "The server returned HTTP status \(statusCode)"
-        case .unauthorized: return "Unauthorized. Please sign in again"
-        case .emptyResponse: return "The server returned an empty response"
-        case let .decodingFailed(message): return "Response decoding failed: \(message)"
-        case let .encodingFailed(message): return "Request encoding failed: \(message)"
-        case let .interceptorFailed(message): return "Network interceptor failed: \(message)"
-        case let .transport(message): return "Network transport failed: \(message)"
-        case .cancelled: return "Request cancelled"
-        }
+        localizedDescription(using: DefaultNetworkErrorLocalizer())
+    }
+
+    /// Returns a localized, user-facing message using the supplied localizer.
+    public func localizedDescription(
+        using localizer: any NetworkErrorLocalizing,
+        locale: Locale = .current
+    ) -> String {
+        localizer.message(for: self, locale: locale)
     }
 }
