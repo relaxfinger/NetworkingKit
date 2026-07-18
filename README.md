@@ -29,7 +29,7 @@ dependencies: [
 
 ## iOS 与 macOS Demo
 
-仓库的 `Examples/NativeNetworkDemoApp/NativeNetworkDemo.xcodeproj` 含两个原生 SwiftUI App scheme：`NativeNetworkDemo-iOS` 与 `NativeNetworkDemo-macOS`。选择对应 scheme 并在 Xcode 中运行，即可查看 REST 与 GraphQL 调用。
+仓库的 `Examples/NativeNetworkDemo/NativeNetworkDemo.xcodeproj` 含两个原生 SwiftUI App scheme：`NativeNetworkDemo-iOS` 与 `NativeNetworkDemo-macOS`。选择对应 scheme 并在 Xcode 中运行，即可查看 REST 与 GraphQL 调用。
 
 示例使用 JSONPlaceholder 与 Rick and Morty GraphQL API，仅用于学习和本地验证；生产应用应使用自己的后端地址、认证与日志策略。
 
