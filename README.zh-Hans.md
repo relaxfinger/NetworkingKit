@@ -377,6 +377,14 @@ if let networkError = error as? NetworkError,
 
 打开 `Examples/NetworkingKitDemo/NetworkingKitDemo.xcodeproj`，运行 `NetworkingKitDemo-iOS` 或 `NetworkingKitDemo-macOS`。Demo 覆盖 REST、GraphQL、App 级配置、英语/简体中文错误本地化，以及内置和自定义拦截器。
 
+## 开发
+
+### Public API 兼容性
+
+每个 PR 都会编译 `NetworkingKitAPICompatibilityTests`。它模拟第三方 App，并且只导入公开模块 API，覆盖 Client 配置、REST、GraphQL、缓存、路由级断路器、观测、重试配置与 pinning。任何使该样例无法编译的改动，都应视为源码兼容性破坏，并在大版本迁移说明中明确记录。
+
+`PerformanceTests` 还会测量 JSON 解码和 URLRequest 构建。它们用于捕获回归，而不是作为不同设备之间的绝对性能指标；如果热点路径的执行时间或分配明显变化，应进一步分析。
+
 ## License
 
 MIT，详见 [LICENSE](LICENSE)。

@@ -2,7 +2,14 @@
 
 All notable changes to NetworkingKit are documented in this file.
 
-## 2.2.8 - Unreleased
+## 2.2.9 - Unreleased
+
+### Added
+
+- Public API compatibility fixture and CI job using third-party integration code only.
+- URL request construction performance benchmark alongside JSON decoding coverage.
+
+## 2.2.8 - 2026-07-18
 
 ### Added
 

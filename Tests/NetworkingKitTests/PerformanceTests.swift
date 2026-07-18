@@ -17,6 +17,32 @@ final class PerformanceTests: XCTestCase {
             _ = try? JSONDecoder().decode(BenchmarkUser.self, from: data)
         }
     }
+
+    func testURLRequestConstructionPerformance() throws {
+        let client = BenchmarkClient()
+        let request = BenchmarkRequest(client: client)
+
+        measure {
+            _ = try? request.buildURLRequest()
+        }
+    }
 }
 
-private struct BenchmarkUser: Decodable { let id: String; let name: String }
+private struct BenchmarkUser: Codable, Sendable { let id: String; let name: String }
+
+private final class BenchmarkClient: NetworkClient, @unchecked Sendable {
+    let baseURL = URL(string: "https://api.example.com")!
+    let session = URLSession(configuration: .ephemeral)
+    let interceptors: [any NetworkInterceptor] = []
+}
+
+private struct BenchmarkRequest: RestfulRequest {
+    typealias Response = BenchmarkUser
+
+    let client: any NetworkClient
+    let path = "/v1/users"
+    let method: HTTPMethod = .post
+    let queryItems: [URLQueryItem]? = [.init(name: "page", value: "1")]
+    let body: (any Encodable & Sendable)? = BenchmarkUser(id: "42", name: "Ada")
+    let contentType: String? = nil
+}

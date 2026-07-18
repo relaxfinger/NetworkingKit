@@ -33,6 +33,11 @@ let package = Package(
             dependencies: ["NetworkingKit"],
             path: "Tests/NetworkingKitTests"
         ),
+        .testTarget(
+            name: "NetworkingKitAPICompatibilityTests",
+            dependencies: ["NetworkingKit"],
+            path: "Tests/NetworkingKitAPICompatibilityTests"
+        ),
     ],
     swiftLanguageModes: [.v6]
 )

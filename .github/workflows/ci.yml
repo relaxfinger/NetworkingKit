@@ -13,6 +13,12 @@ jobs:
       - run: swift test
       - run: swift build -c release
 
+  public-api-compatibility:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: swift test --filter PublicAPICompatibilityTests
+
   demo-build:
     runs-on: macos-latest
     strategy:
