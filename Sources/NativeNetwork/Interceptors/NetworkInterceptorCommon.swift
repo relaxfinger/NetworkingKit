@@ -11,12 +11,12 @@ public struct LoggingInterceptor: NetworkInterceptor {
     
     public init(
         logBodies: Bool = false,
-        maxBodyLength: Int = 1_024,
+        maxBodyLength: Int = NetworkConstants.Logging.defaultMaxBodyLength,
         redactedHeaders: Set<String> = ["authorization", "cookie", "set-cookie", "x-api-key"],
         logger: @escaping @Sendable (String) -> Void = { print($0) }
     ) {
         self.logBodies = logBodies
-        self.maxBodyLength = max(0, maxBodyLength)
+        self.maxBodyLength = max(NetworkConstants.Logging.minimumBodyLength, maxBodyLength)
         self.redactedHeaders = Set(redactedHeaders.map { $0.lowercased() })
         self.logger = logger
     }

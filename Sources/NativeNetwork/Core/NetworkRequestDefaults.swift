@@ -34,12 +34,12 @@ private func performRequest<Request: NetworkRequest>(_ request: Request) async t
     do { for interceptor in request.client.interceptors { try await interceptor.intercept(response: response, data: data) } }
     catch { throw NetworkError.interceptorFailed(message: error.localizedDescription) }
     guard let httpResponse = response as? HTTPURLResponse else { throw NetworkError.nonHTTPResponse }
-    guard (200...299).contains(httpResponse.statusCode) else {
+    guard NetworkConstants.HTTPStatus.successRange.contains(httpResponse.statusCode) else {
         let headers: [String: String] = Dictionary(uniqueKeysWithValues: httpResponse.allHeaderFields.compactMap { element -> (String, String)? in
             guard let key = element.key as? String else { return nil }
             return (key, String(describing: element.value))
         })
-        if httpResponse.statusCode == 401 { throw NetworkError.unauthorized(headers: headers, body: data) }
+        if httpResponse.statusCode == NetworkConstants.HTTPStatus.unauthorized { throw NetworkError.unauthorized(headers: headers, body: data) }
         throw NetworkError.http(statusCode: httpResponse.statusCode, headers: headers, body: data)
     }
     guard !data.isEmpty else { throw NetworkError.emptyResponse }
@@ -49,7 +49,7 @@ private func performRequest<Request: NetworkRequest>(_ request: Request) async t
 
 public extension NetworkRequest {
     var headers: [String: String]? { nil }
-    var timeoutInterval: TimeInterval { 30 }
+    var timeoutInterval: TimeInterval { NetworkConstants.Timeout.defaultInterval }
 
     func buildURLRequest() throws -> URLRequest {
         guard var components = URLComponents(url: client.baseURL.appendingPathComponent(path), resolvingAgainstBaseURL: false) else { throw NetworkError.invalidURL }
@@ -71,7 +71,7 @@ public extension NetworkRequest {
     }
 
     func execute() async throws -> Response {
-        for attempt in 1...client.retryPolicy.maxAttempts {
+        for attempt in NetworkConstants.Retry.firstAttempt...client.retryPolicy.maxAttempts {
             do { return try await performRequest(self) }
             catch let error as NetworkError {
                 guard attempt < client.retryPolicy.maxAttempts, client.retryPolicy.shouldRetry(error) else { throw error }

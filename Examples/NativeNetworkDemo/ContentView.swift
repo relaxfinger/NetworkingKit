@@ -5,20 +5,20 @@ struct ContentView: View {
 
     var body: some View {
         NavigationView {
-            VStack(spacing: 20) {
+            VStack(spacing: DemoLayout.verticalSpacing) {
                 Image(systemName: "network")
-                    .font(.system(size: 52))
+                    .font(.system(size: DemoLayout.iconSize))
                     .foregroundStyle(.tint)
 
                 Group {
                     if let character = model.restCharacter {
-                        VStack(spacing: 6) {
+                        VStack(spacing: DemoLayout.resultSpacing) {
                             Text("REST Character #\(character.id)").font(.headline)
                             Text(character.name).font(.title3.bold())
                             Text("\(character.species) · \(character.status)").foregroundStyle(.secondary)
                         }
                     } else if let character = model.graphQLCharacter {
-                        VStack(spacing: 6) {
+                        VStack(spacing: DemoLayout.resultSpacing) {
                             Text("GraphQL Character").font(.headline)
                             Text(character.name).font(.title3.bold())
                             Text("\(character.species) · \(character.status)").foregroundStyle(.secondary)
@@ -27,7 +27,7 @@ struct ContentView: View {
                         Text(model.message).foregroundStyle(.secondary)
                     }
                 }
-                .frame(maxWidth: 420)
+                .frame(maxWidth: DemoLayout.maximumContentWidth)
                 .multilineTextAlignment(.center)
 
                 HStack {
@@ -56,6 +56,13 @@ struct ContentView: View {
         "iOS"
         #endif
     }
+}
+
+private enum DemoLayout {
+    static let iconSize: CGFloat = 52
+    static let verticalSpacing: CGFloat = 20
+    static let resultSpacing: CGFloat = 6
+    static let maximumContentWidth: CGFloat = 420
 }
 
 #Preview { ContentView() }

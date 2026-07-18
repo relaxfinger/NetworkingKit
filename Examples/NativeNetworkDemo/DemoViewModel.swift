@@ -12,7 +12,7 @@ final class DemoViewModel: ObservableObject {
         Task {
             beginLoading()
             do {
-                restCharacter = try await GetCharacterRequest(id: "1").execute()
+                restCharacter = try await GetCharacterRequest(id: DemoConstants.characterID).execute()
                 graphQLCharacter = nil
             } catch { message = error.localizedDescription }
             isLoading = false
@@ -23,7 +23,7 @@ final class DemoViewModel: ObservableObject {
         Task {
             beginLoading()
             do {
-                let response = try await FetchCharacterProfileRequest(id: "1").execute()
+                let response = try await FetchCharacterProfileRequest(id: DemoConstants.characterID).execute()
                 graphQLCharacter = response.data?.character
                 restCharacter = nil
                 if let error = response.errors?.first { message = error.message }
@@ -35,6 +35,12 @@ final class DemoViewModel: ObservableObject {
     private func beginLoading() { message = "Loading…"; isLoading = true }
 }
 
+private enum DemoConstants {
+    static let characterID = "1"
+    static let retryAttempts = 2
+    static let requestTimeout: TimeInterval = 15
+}
+
 // MARK: - App networking layer
 
 final class AppNetworkClient: NetworkClient, @unchecked Sendable {
@@ -43,11 +49,11 @@ final class AppNetworkClient: NetworkClient, @unchecked Sendable {
     let baseURL = URL(string: "https://rickandmortyapi.com")!
     let session: URLSession
     let interceptors: [any NetworkInterceptor] = []
-    let retryPolicy = RetryPolicy(maxAttempts: 2)
+    let retryPolicy = RetryPolicy(maxAttempts: DemoConstants.retryAttempts)
 
     private init() {
         let configuration = URLSessionConfiguration.default
-        configuration.timeoutIntervalForRequest = 15
+        configuration.timeoutIntervalForRequest = DemoConstants.requestTimeout
         self.session = URLSession(configuration: configuration)
     }
 }

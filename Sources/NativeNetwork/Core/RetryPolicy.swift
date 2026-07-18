@@ -6,24 +6,28 @@ public struct RetryPolicy: Sendable {
     public let initialDelay: TimeInterval
     public let multiplier: Double
 
-    public init(maxAttempts: Int = 1, initialDelay: TimeInterval = 0.25, multiplier: Double = 2) {
-        self.maxAttempts = max(1, maxAttempts)
-        self.initialDelay = max(0, initialDelay)
-        self.multiplier = max(1, multiplier)
+    public init(maxAttempts: Int = NetworkConstants.Retry.minimumAttempts, initialDelay: TimeInterval = NetworkConstants.Retry.defaultInitialDelay, multiplier: Double = NetworkConstants.Retry.defaultMultiplier) {
+        self.maxAttempts = max(NetworkConstants.Retry.minimumAttempts, maxAttempts)
+        self.initialDelay = max(NetworkConstants.Retry.minimumDelay, initialDelay)
+        self.multiplier = max(NetworkConstants.Retry.minimumMultiplier, multiplier)
     }
 
     public static let none = RetryPolicy()
 
     func shouldRetry(_ error: NetworkError) -> Bool {
         switch error {
-        case let .http(statusCode, _, _): return statusCode == 408 || statusCode == 429 || (500...599).contains(statusCode)
+        case let .http(statusCode, _, _):
+            return statusCode == NetworkConstants.HTTPStatus.requestTimeout
+                || statusCode == NetworkConstants.HTTPStatus.tooManyRequests
+                || NetworkConstants.HTTPStatus.serverErrorRange.contains(statusCode)
         case .transport: return true
         default: return false
         }
     }
 
     func delayNanoseconds(after attempt: Int) -> UInt64 {
-        let seconds = initialDelay * pow(multiplier, Double(max(0, attempt - 1)))
-        return UInt64(min(seconds * 1_000_000_000, Double(UInt64.max)))
+        let exponent = Double(max(NetworkConstants.Retry.minimumDelay, Double(attempt - NetworkConstants.Retry.firstAttempt)))
+        let seconds = initialDelay * pow(multiplier, exponent)
+        return UInt64(min(seconds * NetworkConstants.Retry.nanosecondsPerSecond, Double(UInt64.max)))
     }
 }
