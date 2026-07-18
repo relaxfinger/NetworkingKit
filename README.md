@@ -282,12 +282,25 @@ For certificate rotation, `PublicKeyHashPinningEvaluator` accepts SHA-256 hashes
 
 ### Circuit breaker
 
-Wrap a transport with `CircuitBreakingTransport` to stop repeated failures from overwhelming an unhealthy service. Combine it with `RequestConcurrencyLimiter` to limit both failure amplification and concurrent load.
+Wrap a transport with `CircuitBreakingTransport` to stop repeated failures from overwhelming an unhealthy service. It exposes a `CircuitBreakerSnapshot` for lightweight health metrics and admits exactly one half-open recovery probe after `resetTimeout`.
 
 ```swift
 let transport = CircuitBreakingTransport(
     upstream: URLSessionTransport(session: session),
     circuitBreaker: CircuitBreaker(failureThreshold: 5, resetTimeout: 30)
+)
+```
+
+Most apps should use `RouteCircuitBreakingTransport`. It gives each method/host/port/path combination its own circuit, so one failed endpoint does not block healthy API routes. Keep caching outside it so cache hits remain available while an upstream route recovers. `CircuitBreakerRegistry.snapshots()` provides route-keyed state for diagnostics and telemetry.
+
+```swift
+let registry = CircuitBreakerRegistry(failureThreshold: 5, resetTimeout: 30)
+let transport = CachingTransport(
+    upstream: RouteCircuitBreakingTransport(
+        upstream: URLSessionTransport(session: session),
+        registry: registry
+    ),
+    cache: InMemoryResponseCache(capacity: 200)
 )
 ```
 
