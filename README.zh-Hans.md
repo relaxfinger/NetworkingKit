@@ -240,6 +240,8 @@ let transport = CachingTransport(
 
 需要跨 App 启动保留缓存并遵循 HTTP 重新验证语义时，请使用 `DiskResponseCache`。过期条目存在 ETag 时会自动发送 `If-None-Match`；服务端返回 `304 Not Modified` 后会复用本地 body 并刷新 TTL。
 
+缓存同时遵守 `Cache-Control: no-store`、支持 `Expires`，复用前会校验 `Vary` 请求 Header，内存缓存则采用最近最少使用（LRU）淘汰顺序。
+
 ```swift
 let directory = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
     .appendingPathComponent("NetworkingKitCache")

@@ -14,6 +14,7 @@ All notable changes to NetworkingKit are documented in this file.
 - Host-scoped certificate pinning and a reusable URLSession trust delegate.
 - OSLog observer and an SDK-agnostic OpenTelemetry event bridge.
 - Release build verification, benchmark smoke test, and tag-triggered release automation.
+- Complete cache semantics for `no-store`, `Expires`, `Vary`, and LRU access ordering.
 
 ## 2.0.0 - 2026-07-18
 
