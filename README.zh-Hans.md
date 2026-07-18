@@ -245,7 +245,15 @@ let cache = DiskResponseCache(directory: directory)
 let transport = CachingTransport(upstream: URLSessionTransport(session: session), cache: cache)
 ```
 
-证书固定和信任策略有意交由 App 持有的 `URLSession` 或自定义 `NetworkTransport` 管理。可通过 `URLSessionDelegate` 配置服务端信任校验，再把该 Session 注入 `URLSessionTransport`；这样安全策略可按 App 域名与证书轮换流程进行审计。
+使用 `CertificatePinningEvaluator` 和 `ServerTrustSessionDelegate` 可按 Host 固定叶子证书的 DER 数据。证书轮换期间至少保留两个 pin，并在接受 pin 前继续使用系统信任校验。
+
+```swift
+let evaluator = CertificatePinningEvaluator(pinnedCertificates: [
+    "api.example.com": [currentCertificateDER, nextCertificateDER]
+])
+let delegate = ServerTrustSessionDelegate(evaluator: evaluator)
+let session = URLSession(configuration: .default, delegate: delegate, delegateQueue: nil)
+```
 
 ### 断路器
 

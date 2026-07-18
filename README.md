@@ -264,7 +264,15 @@ let cache = DiskResponseCache(directory: directory)
 let transport = CachingTransport(upstream: URLSessionTransport(session: session), cache: cache)
 ```
 
-NetworkingKit deliberately leaves certificate pinning and trust policy to the app-owned `URLSession` or a custom `NetworkTransport`. Configure a `URLSessionDelegate` for server-trust evaluation, then inject that session into `URLSessionTransport`; this keeps security policy auditable and specific to the app’s domains and rotation process.
+Use `CertificatePinningEvaluator` and `ServerTrustSessionDelegate` to pin leaf-certificate DER data per host. Keep at least two pins during certificate rotation, and retain normal system trust evaluation before accepting a pin.
+
+```swift
+let evaluator = CertificatePinningEvaluator(pinnedCertificates: [
+    "api.example.com": [currentCertificateDER, nextCertificateDER]
+])
+let delegate = ServerTrustSessionDelegate(evaluator: evaluator)
+let session = URLSession(configuration: .default, delegate: delegate, delegateQueue: nil)
+```
 
 ### Circuit breaker
 
