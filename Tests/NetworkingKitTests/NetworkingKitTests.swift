@@ -76,6 +76,30 @@ final class NetworkingKitTests: XCTestCase {
         }
     }
 
+    func testConcurrentUnauthorizedRequestsRefreshOnceAndReplay() async throws {
+        let credentials = TestCredentialProvider()
+        let authentication = RefreshingAuthInterceptor(provider: credentials)
+        let client = makeClient(interceptors: [authentication], authentication: authentication) { request in
+            let statusCode = request.value(forHTTPHeaderField: "Authorization") == "Bearer fresh-token" ? 200 : 401
+            let response = HTTPURLResponse(
+                url: try! XCTUnwrap(request.url),
+                statusCode: statusCode,
+                httpVersion: nil,
+                headerFields: nil
+            )!
+            let data = statusCode == 200 ? #"{"id":"42","name":"Ada"}"#.data(using: .utf8)! : Data()
+            return (response, data)
+        }
+
+        async let first = GetUserRequest(client: client, id: "42").execute()
+        async let second = GetUserRequest(client: client, id: "43").execute()
+        let users = try await [first, second]
+        let refreshCount = await credentials.refreshCount
+
+        XCTAssertEqual(users.map(\.name), ["Ada", "Ada"])
+        XCTAssertEqual(refreshCount, 1)
+    }
+
     func testGraphQLResponseKeepsDataAndErrors() async throws {
         let client = makeClient { request in
             XCTAssertEqual(request.value(forHTTPHeaderField: "Content-Type"), "application/json")
@@ -167,6 +191,7 @@ final class NetworkingKitTests: XCTestCase {
         configuration: NetworkConfiguration? = nil,
         retryPolicy: RetryPolicy = .none,
         interceptors: [any NetworkInterceptor] = [],
+        authentication: (any AuthenticationRefreshing)? = nil,
         handler: @escaping StubTransport.Handler = { request in
         (.init(url: try! XCTUnwrap(request.url), statusCode: 200, httpVersion: nil, headerFields: nil)!, Data())
     }) -> TestClient {
@@ -174,6 +199,7 @@ final class NetworkingKitTests: XCTestCase {
             baseURL: URL(string: "https://example.com/api")!,
             transport: StubTransport(handler: handler),
             interceptors: interceptors,
+            authentication: authentication,
             configuration: configuration ?? NetworkConfiguration(retryPolicy: retryPolicy)
         )
     }
@@ -261,13 +287,35 @@ private final class TestClient: NetworkClient, @unchecked Sendable {
     let session: URLSession
     let transport: any NetworkTransport
     let interceptors: [any NetworkInterceptor]
+    let authentication: (any AuthenticationRefreshing)?
     let configuration: NetworkConfiguration
-    init(baseURL: URL, transport: any NetworkTransport, interceptors: [any NetworkInterceptor], configuration: NetworkConfiguration) {
+    init(
+        baseURL: URL,
+        transport: any NetworkTransport,
+        interceptors: [any NetworkInterceptor],
+        authentication: (any AuthenticationRefreshing)?,
+        configuration: NetworkConfiguration
+    ) {
         self.baseURL = baseURL
         self.session = .shared
         self.transport = transport
         self.interceptors = interceptors
+        self.authentication = authentication
         self.configuration = configuration
+    }
+}
+
+private actor TestCredentialProvider: AccessTokenProviding {
+    private var token = "expired-token"
+    private(set) var refreshCount = 0
+
+    func accessToken() async -> String? { token }
+
+    func refreshAccessToken() async throws -> String? {
+        refreshCount += 1
+        try await Task.sleep(nanoseconds: 10_000_000)
+        token = "fresh-token"
+        return token
     }
 }
 

@@ -58,17 +58,37 @@ enum AppNetworkConfiguration {
     )
 }
 
+actor TokenStore: AccessTokenProviding {
+    static let shared = TokenStore()
+
+    func accessToken() async -> String? {
+        // Read the current token from secure storage.
+        nil
+    }
+
+    func refreshAccessToken() async throws -> String? {
+        // Use a dedicated refresh endpoint/session and persist the returned token.
+        nil
+    }
+}
+
 final class AppNetworkClient: NetworkClient, @unchecked Sendable {
     static let shared = AppNetworkClient()
 
     let baseURL = URL(string: "https://api.example.com")!
     let session: URLSession
     let configuration = AppNetworkConfiguration.production
-    let interceptors: [any NetworkInterceptor] = [
-        AppCommonHeadersInterceptor(),
-        AuthInterceptor { TokenStore.shared.accessToken },
-        LoggingInterceptor(logBodies: false) { print($0) }
-    ]
+    private let refreshingAuthentication = RefreshingAuthInterceptor(provider: TokenStore.shared)
+
+    var interceptors: [any NetworkInterceptor] {
+        [
+            AppCommonHeadersInterceptor(),
+            refreshingAuthentication,
+            LoggingInterceptor(logBodies: false) { print($0) }
+        ]
+    }
+
+    var authentication: (any AuthenticationRefreshing)? { refreshingAuthentication }
 
     private init() {
         session = URLSession(configuration: .default)
@@ -188,6 +208,10 @@ let transport: any NetworkTransport = StubTransport()
 ```swift
 AuthInterceptor { TokenStore.shared.accessToken }
 ```
+
+如果 Bearer Token 会过期，应使用 `RefreshingAuthInterceptor`。必须将**同一个实例**同时注册到 `interceptors` 和 `authentication`：收到 `401` 后，并发请求只会共享一次刷新操作，每个受影响请求至多重放一次。刷新失败会返回 `NetworkError.authenticationRefreshFailed`，不会发生无限重试。
+
+`AccessTokenProviding` 通常应实现为 actor。刷新 Token 时应使用独立的接口或 `URLSession`，避免刷新请求再次进入需要认证的网络链路。
 
 `LoggingInterceptor` 记录请求与响应元数据，默认对 Authorization、Cookie 和 API Key 脱敏，也默认不记录 body。生产环境应谨慎启用 body 日志：
 

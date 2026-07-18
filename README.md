@@ -60,17 +60,37 @@ enum AppNetworkConfiguration {
     )
 }
 
+actor TokenStore: AccessTokenProviding {
+    static let shared = TokenStore()
+
+    func accessToken() async -> String? {
+        // Read the current token from secure storage.
+        nil
+    }
+
+    func refreshAccessToken() async throws -> String? {
+        // Use a dedicated refresh endpoint/session and persist the returned token.
+        nil
+    }
+}
+
 final class AppNetworkClient: NetworkClient, @unchecked Sendable {
     static let shared = AppNetworkClient()
 
     let baseURL = URL(string: "https://api.example.com")!
     let session: URLSession
     let configuration = AppNetworkConfiguration.production
-    let interceptors: [any NetworkInterceptor] = [
-        AppCommonHeadersInterceptor(),
-        AuthInterceptor { TokenStore.shared.accessToken },
-        LoggingInterceptor(logBodies: false) { print($0) }
-    ]
+    private let refreshingAuthentication = RefreshingAuthInterceptor(provider: TokenStore.shared)
+
+    var interceptors: [any NetworkInterceptor] {
+        [
+            AppCommonHeadersInterceptor(),
+            refreshingAuthentication,
+            LoggingInterceptor(logBodies: false) { print($0) }
+        ]
+    }
+
+    var authentication: (any AuthenticationRefreshing)? { refreshingAuthentication }
 
     private init() {
         let sessionConfiguration = URLSessionConfiguration.default
@@ -207,6 +227,10 @@ let transport: any NetworkTransport = StubTransport()
 ```swift
 AuthInterceptor { TokenStore.shared.accessToken }
 ```
+
+For expiring bearer tokens, use `RefreshingAuthInterceptor` instead. Register the *same instance* in both `interceptors` and `authentication`. On `401`, concurrent requests share one refresh operation and every affected request is replayed at most once. A failed refresh produces `NetworkError.authenticationRefreshFailed`; it never loops indefinitely.
+
+`AccessTokenProviding` should normally be an actor. Perform the refresh through a dedicated endpoint or session so that the refresh operation does not recursively enter the authenticated request pipeline.
 
 `LoggingInterceptor` logs request and response metadata. It redacts `Authorization`, cookies, and API keys by default. Keep `logBodies` disabled in production unless body logging is explicitly safe.
 
