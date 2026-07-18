@@ -88,10 +88,14 @@ final class AppNetworkClient: NetworkClient, @unchecked Sendable {
     let configuration = AppNetworkConfiguration.default
     private let refreshingAuthentication = RefreshingAuthInterceptor(provider: DemoTokenProvider.shared)
     private let responseCache = InMemoryResponseCache(capacity: 50)
+    private let circuitBreakers = CircuitBreakerRegistry(failureThreshold: 3, resetTimeout: 20)
 
     var transport: any NetworkTransport {
         CachingTransport(
-            upstream: URLSessionTransport(session: session),
+            upstream: RouteCircuitBreakingTransport(
+                upstream: URLSessionTransport(session: session),
+                registry: circuitBreakers
+            ),
             cache: responseCache,
             policy: .returnCacheElseLoad
         )

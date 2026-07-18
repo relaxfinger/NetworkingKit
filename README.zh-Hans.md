@@ -263,12 +263,25 @@ let session = URLSession(configuration: .default, delegate: delegate, delegateQu
 
 ### 断路器
 
-使用 `CircuitBreakingTransport` 包装 Transport，可在上游连续失败时快速拒绝请求，避免持续冲击异常服务。它可与 `RequestConcurrencyLimiter` 组合，分别限制故障放大和并发负载。
+使用 `CircuitBreakingTransport` 包装 Transport，可在上游连续失败时快速拒绝请求，避免持续冲击异常服务。它通过 `CircuitBreakerSnapshot` 提供轻量健康指标，并在 `resetTimeout` 到期后只允许一个半开恢复探测请求。
 
 ```swift
 let transport = CircuitBreakingTransport(
     upstream: URLSessionTransport(session: session),
     circuitBreaker: CircuitBreaker(failureThreshold: 5, resetTimeout: 30)
+)
+```
+
+多数 App 应使用 `RouteCircuitBreakingTransport`。它会为每个 method/host/port/path 组合建立独立断路器，因此一个异常接口不会阻断其他健康 API。将缓存放在它的外层，可以让上游恢复期间的缓存命中继续可用；`CircuitBreakerRegistry.snapshots()` 则可返回按路由 key 划分的状态，供诊断和遥测使用。
+
+```swift
+let registry = CircuitBreakerRegistry(failureThreshold: 5, resetTimeout: 30)
+let transport = CachingTransport(
+    upstream: RouteCircuitBreakingTransport(
+        upstream: URLSessionTransport(session: session),
+        registry: registry
+    ),
+    cache: InMemoryResponseCache(capacity: 200)
 )
 ```
 

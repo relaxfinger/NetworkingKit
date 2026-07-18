@@ -2,7 +2,49 @@
 
 All notable changes to NetworkingKit are documented in this file.
 
-## 2.2.0 - Unreleased
+## 2.2.8 - Unreleased
+
+### Added
+
+- Route-scoped circuit breakers with half-open recovery probes and state snapshots.
+
+## 2.2.7 - 2026-07-18
+
+### Added
+
+- SHA-256 public-key hash pinning with backup-pin rotation support.
+
+## 2.2.6 - 2026-07-18
+
+### Added
+
+- Complete cache semantics for `no-store`, `Expires`, `Vary`, and LRU access ordering.
+
+## 2.2.5 - 2026-07-18
+
+### Added
+
+- Release build verification, benchmark smoke test, and tag-triggered release automation.
+
+## 2.2.4 - 2026-07-18
+
+### Added
+
+- OSLog observer and an SDK-agnostic OpenTelemetry event bridge.
+
+## 2.2.3 - 2026-07-18
+
+### Added
+
+- Host-scoped certificate pinning and a reusable URLSession trust delegate.
+
+## 2.2.2 - 2026-07-18
+
+### Added
+
+- Circuit-breaking transport to fail fast during repeated upstream failures.
+
+## 2.2.1 - 2026-07-18
 
 ### Added
 
@@ -10,12 +52,6 @@ All notable changes to NetworkingKit are documented in this file.
 - Vendor-neutral lifecycle observation, request correlation IDs, and actor-backed concurrent-attempt limiting.
 - Composable in-memory response caching with cache-first and offline cache-only transport policies.
 - Persistent disk cache with `Cache-Control` TTL, ETag validation, and `304 Not Modified` reuse.
-- Circuit-breaking transport to fail fast during repeated upstream failures.
-- Host-scoped certificate pinning and a reusable URLSession trust delegate.
-- OSLog observer and an SDK-agnostic OpenTelemetry event bridge.
-- Release build verification, benchmark smoke test, and tag-triggered release automation.
-- Complete cache semantics for `no-store`, `Expires`, `Vary`, and LRU access ordering.
-- SHA-256 public-key hash pinning with backup-pin rotation support.
 
 ## 2.0.0 - 2026-07-18
 

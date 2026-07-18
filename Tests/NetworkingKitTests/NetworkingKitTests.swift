@@ -98,6 +98,63 @@ final class NetworkingKitTests: XCTestCase {
         XCTAssertEqual(counter.value, 1)
     }
 
+    func testCircuitBreakerAllowsOneHalfOpenRecoveryProbe() async throws {
+        let breaker = CircuitBreaker(failureThreshold: 1, resetTimeout: 0)
+
+        await breaker.recordFailure()
+        let openSnapshot = await breaker.snapshot()
+        XCTAssertEqual(openSnapshot.state, .open)
+
+        try await breaker.allowRequest()
+        let halfOpenSnapshot = await breaker.snapshot()
+        XCTAssertEqual(halfOpenSnapshot.state, .halfOpen)
+
+        do {
+            try await breaker.allowRequest()
+            XCTFail("Expected the half-open circuit to allow only one probe")
+        } catch is CircuitOpenError {
+            // Expected.
+        }
+
+        await breaker.recordSuccess()
+        let closedSnapshot = await breaker.snapshot()
+        XCTAssertEqual(closedSnapshot, .init(state: .closed, consecutiveFailures: 0))
+    }
+
+    func testRouteCircuitBreakerDoesNotBlockHealthyRoute() async throws {
+        let registry = CircuitBreakerRegistry(failureThreshold: 1, resetTimeout: 30)
+        let transport = RouteCircuitBreakingTransport(
+            upstream: StubTransport { request in
+                let statusCode = request.url?.path == "/unhealthy" ? 503 : 200
+                let response = HTTPURLResponse(
+                    url: try! XCTUnwrap(request.url),
+                    statusCode: statusCode,
+                    httpVersion: nil,
+                    headerFields: nil
+                )!
+                return (response, Data())
+            },
+            registry: registry
+        )
+        let unhealthy = URLRequest(url: URL(string: "https://example.com/unhealthy")!)
+        let healthy = URLRequest(url: URL(string: "https://example.com/healthy")!)
+
+        _ = try await transport.send(unhealthy)
+        do {
+            _ = try await transport.send(unhealthy)
+            XCTFail("Expected unhealthy route to be open")
+        } catch is CircuitOpenError {
+            // Expected.
+        }
+
+        let healthyResponse = try await transport.send(healthy).1 as? HTTPURLResponse
+        XCTAssertEqual(healthyResponse?.statusCode, 200)
+
+        let snapshots = await registry.snapshots()
+        XCTAssertEqual(snapshots[CircuitBreakerRouteKey.hostAndPath(for: unhealthy)]?.state, .open)
+        XCTAssertEqual(snapshots[CircuitBreakerRouteKey.hostAndPath(for: healthy)]?.state, .closed)
+    }
+
     func testExecuteMapsUnauthorizedResponse() async {
         let client = makeClient { request in
             (.init(url: try! XCTUnwrap(request.url), statusCode: 401, httpVersion: nil, headerFields: ["X-Request-ID": "trace-1"])!, Data())
