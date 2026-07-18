@@ -206,6 +206,8 @@ let transport: any NetworkTransport = StubTransport()
 
 ### 可观测性与执行控制
 
+使用 `OSLogNetworkObserver(subsystem: "com.example.app")` 可零依赖接入统一日志。若使用 OpenTelemetry，请以具体 SDK 实现 `OpenTelemetryExporting`，再注册 `OpenTelemetryNetworkObserver(exporter:)`；NetworkingKit 本身不强依赖任何 SDK。
+
 添加 `RequestIDInterceptor()` 后，每个请求都会携带 `X-Request-ID`。`NetworkObserving` 会收到每一次传输尝试的开始和结束事件，其中包含状态码、耗时，以及失败时结构化的 `NetworkError`。建议使用 actor 实现该协议，再将数据转发给 OSLog、OpenTelemetry 或自有埋点系统，且不会阻塞请求。
 
 ```swift

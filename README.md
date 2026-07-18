@@ -225,6 +225,8 @@ let transport: any NetworkTransport = StubTransport()
 
 ### Observability and execution controls
 
+Use `OSLogNetworkObserver(subsystem: "com.example.app")` for zero-dependency unified logging. For OpenTelemetry, implement `OpenTelemetryExporting` with your SDK and register `OpenTelemetryNetworkObserver(exporter:)`; NetworkingKit remains SDK-agnostic.
+
 Add `RequestIDInterceptor()` to propagate an `X-Request-ID` value. `NetworkObserving` receives start and finish events for every transport attempt, including status, duration, and a structured `NetworkError` when one occurs. Implement it with an actor to forward data to OSLog, OpenTelemetry, or your telemetry service without blocking requests.
 
 ```swift
