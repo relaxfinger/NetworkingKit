@@ -39,6 +39,10 @@ final class PublicAPICompatibilityTests: XCTestCase {
 
         let observer = OSLogNetworkObserver(subsystem: "com.example.compatibility")
         await observer.record(.started(.init(id: "contract", method: .get, url: client.baseURL)))
+        let metrics = NetworkMetrics()
+        let metricsObserver = NetworkMetricsObserver(metrics: metrics)
+        await metricsObserver.record(.finished(.init(id: "contract", method: .get, url: client.baseURL), .init(statusCode: 200, duration: 0.01, error: nil)))
+        _ = await metrics.snapshot()
         _ = RequestIDInterceptor()
         _ = RetryPolicy(maxAttempts: 3)
         _ = NetworkConfiguration(timeoutInterval: 15)
