@@ -1,0 +1,410 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		1BAF471EDB0E06C771AE6D66 /* NativeNetworkDemoApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CFB96D798E71808AE3355DC /* NativeNetworkDemoApp.swift */; };
+		7494A2040763C0E833053628 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F108B01274E5CA78C3A456E /* ContentView.swift */; };
+		75B9C9E280ABB42A1CFDEF54 /* DemoViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E289523E2D3DA3B1A63F90EF /* DemoViewModel.swift */; };
+		C34524E0D5E00EE87C7C8507 /* DemoViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E289523E2D3DA3B1A63F90EF /* DemoViewModel.swift */; };
+		C94484245E39E8496FFD5AE8 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F108B01274E5CA78C3A456E /* ContentView.swift */; };
+		CF1E11145CB832419BB88169 /* NativeNetworkDemoApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CFB96D798E71808AE3355DC /* NativeNetworkDemoApp.swift */; };
+		F567F08F6CBA747034E9D471 /* NativeNetwork in Frameworks */ = {isa = PBXBuildFile; productRef = 814A6F38C8D98169800976E6 /* NativeNetwork */; };
+		FE06699B3263E95E901401EE /* NativeNetwork in Frameworks */ = {isa = PBXBuildFile; productRef = C537F07BED54A94251D3209D /* NativeNetwork */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		1CFB96D798E71808AE3355DC /* NativeNetworkDemoApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeNetworkDemoApp.swift; sourceTree = "<group>"; };
+		466526D84522317EE5374FBD /* NetworkingKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = NetworkingKit; path = ../..; sourceTree = SOURCE_ROOT; };
+		7F108B01274E5CA78C3A456E /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		B66E5443BD13A29E8BB152E7 /* NativeNetworkDemo-iOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = "NativeNetworkDemo-iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		E289523E2D3DA3B1A63F90EF /* DemoViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoViewModel.swift; sourceTree = "<group>"; };
+		E47242D15846AC96CB6BB8EA /* NativeNetworkDemo-macOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "NativeNetworkDemo-macOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		6B7B08642E3A696E94094351 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F567F08F6CBA747034E9D471 /* NativeNetwork in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E38FF5C383F5182D292E9466 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FE06699B3263E95E901401EE /* NativeNetwork in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		498AEEFF878009767897EB48 = {
+			isa = PBXGroup;
+			children = (
+				7F108B01274E5CA78C3A456E /* ContentView.swift */,
+				E289523E2D3DA3B1A63F90EF /* DemoViewModel.swift */,
+				1CFB96D798E71808AE3355DC /* NativeNetworkDemoApp.swift */,
+				D93C8A2C7ADF2A30A433EF53 /* Packages */,
+				9E5FA8F594F26C259BC63DD3 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		9E5FA8F594F26C259BC63DD3 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				B66E5443BD13A29E8BB152E7 /* NativeNetworkDemo-iOS.app */,
+				E47242D15846AC96CB6BB8EA /* NativeNetworkDemo-macOS.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		D93C8A2C7ADF2A30A433EF53 /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				466526D84522317EE5374FBD /* NetworkingKit */,
+			);
+			name = Packages;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		60C3B76C67BD58A1C450FA6F /* NativeNetworkDemo-macOS */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 7E18921A1BC693013B253B55 /* Build configuration list for PBXNativeTarget "NativeNetworkDemo-macOS" */;
+			buildPhases = (
+				56C937E242F04B6EEF4A7423 /* Sources */,
+				6B7B08642E3A696E94094351 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "NativeNetworkDemo-macOS";
+			packageProductDependencies = (
+				814A6F38C8D98169800976E6 /* NativeNetwork */,
+			);
+			productName = "NativeNetworkDemo-macOS";
+			productReference = E47242D15846AC96CB6BB8EA /* NativeNetworkDemo-macOS.app */;
+			productType = "com.apple.product-type.application";
+		};
+		A7CBE7878E8528FAADC37B7F /* NativeNetworkDemo-iOS */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = FA7F27FDDE0113D6C6565502 /* Build configuration list for PBXNativeTarget "NativeNetworkDemo-iOS" */;
+			buildPhases = (
+				1919ADB1C0BE4BDAECC8F283 /* Sources */,
+				E38FF5C383F5182D292E9466 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "NativeNetworkDemo-iOS";
+			packageProductDependencies = (
+				C537F07BED54A94251D3209D /* NativeNetwork */,
+			);
+			productName = "NativeNetworkDemo-iOS";
+			productReference = B66E5443BD13A29E8BB152E7 /* NativeNetworkDemo-iOS.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		A47974235EA895DD36DC64FE /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+				};
+			};
+			buildConfigurationList = D0A4EC0A4BE72EEEBDE32652 /* Build configuration list for PBXProject "NativeNetworkDemo" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 498AEEFF878009767897EB48;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				B5D87E01EFB750BF5AB2F6E6 /* XCLocalSwiftPackageReference "../.." */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 9E5FA8F594F26C259BC63DD3 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				A7CBE7878E8528FAADC37B7F /* NativeNetworkDemo-iOS */,
+				60C3B76C67BD58A1C450FA6F /* NativeNetworkDemo-macOS */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		1919ADB1C0BE4BDAECC8F283 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7494A2040763C0E833053628 /* ContentView.swift in Sources */,
+				C34524E0D5E00EE87C7C8507 /* DemoViewModel.swift in Sources */,
+				1BAF471EDB0E06C771AE6D66 /* NativeNetworkDemoApp.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		56C937E242F04B6EEF4A7423 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C94484245E39E8496FFD5AE8 /* ContentView.swift in Sources */,
+				75B9C9E280ABB42A1CFDEF54 /* DemoViewModel.swift in Sources */,
+				CF1E11145CB832419BB88169 /* NativeNetworkDemoApp.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		33DEDE019CA422CA90A82F00 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.relaxfinger.NativeNetworkDemo-iOS";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		5271348D8FD5C16026D45484 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.relaxfinger.NativeNetworkDemo-macOS";
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		BBBDE50D7E5129BB63169939 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		C35E145AD2148D866340A3F5 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.relaxfinger.NativeNetworkDemo-macOS";
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		D4FC07226A9893EED52946AE /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		F1792EFF1378B0503F8FF1DE /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.relaxfinger.NativeNetworkDemo-iOS";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		7E18921A1BC693013B253B55 /* Build configuration list for PBXNativeTarget "NativeNetworkDemo-macOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C35E145AD2148D866340A3F5 /* Debug */,
+				5271348D8FD5C16026D45484 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		D0A4EC0A4BE72EEEBDE32652 /* Build configuration list for PBXProject "NativeNetworkDemo" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BBBDE50D7E5129BB63169939 /* Debug */,
+				D4FC07226A9893EED52946AE /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		FA7F27FDDE0113D6C6565502 /* Build configuration list for PBXNativeTarget "NativeNetworkDemo-iOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				33DEDE019CA422CA90A82F00 /* Debug */,
+				F1792EFF1378B0503F8FF1DE /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		B5D87E01EFB750BF5AB2F6E6 /* XCLocalSwiftPackageReference "../.." */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../..;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		814A6F38C8D98169800976E6 /* NativeNetwork */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = NativeNetwork;
+		};
+		C537F07BED54A94251D3209D /* NativeNetwork */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = NativeNetwork;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = A47974235EA895DD36DC64FE /* Project object */;
+}
