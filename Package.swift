@@ -1,8 +1,8 @@
 //
 //  Package.swift
-//  NativeNetwork
+//  NetworkingKit
 //
-//  Copyright (c) 2026 NativeNetwork contributors.
+//  Copyright (c) 2026 NetworkingKit contributors.
 //  Licensed under the MIT License. See LICENSE in the project root for license information.
 //
 
@@ -10,7 +10,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "NativeNetwork",
+    name: "NetworkingKit",
     platforms: [
         .iOS(.v17),
         .macOS(.v14),
@@ -19,19 +19,19 @@ let package = Package(
     ],
     products: [
         .library(
-            name: "NativeNetwork",
-            targets: ["NativeNetwork"]
+            name: "NetworkingKit",
+            targets: ["NetworkingKit"]
         ),
     ],
     targets: [
         .target(
-            name: "NativeNetwork",
-            path: "Sources/NativeNetwork"
+            name: "NetworkingKit",
+            path: "Sources/NetworkingKit"
         ),
         .testTarget(
-            name: "NativeNetworkTests",
-            dependencies: ["NativeNetwork"],
-            path: "Tests/NativeNetworkTests"
+            name: "NetworkingKitTests",
+            dependencies: ["NetworkingKit"],
+            path: "Tests/NetworkingKitTests"
         ),
     ],
     swiftLanguageModes: [.v6]

@@ -1,13 +1,13 @@
 //
 //  DemoViewModel.swift
-//  NativeNetworkDemo
+//  NetworkingKitDemo
 //
-//  Copyright (c) 2026 NativeNetwork contributors.
+//  Copyright (c) 2026 NetworkingKit contributors.
 //  Licensed under the MIT License. See LICENSE in the project root for license information.
 //
 
 import Foundation
-import NativeNetwork
+import NetworkingKit
 
 @MainActor
 final class DemoViewModel: ObservableObject {
@@ -90,7 +90,7 @@ final class AppNetworkClient: NetworkClient, @unchecked Sendable {
 struct DemoRequestHeaderInterceptor: NetworkInterceptor {
     func adapt(_ request: URLRequest) async throws -> URLRequest {
         var request = request
-        request.setValue("NativeNetworkDemo", forHTTPHeaderField: "X-Demo-Client")
+        request.setValue("NetworkingKitDemo", forHTTPHeaderField: "X-Demo-Client")
         return request
     }
 }

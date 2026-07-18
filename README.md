@@ -1,8 +1,8 @@
-# NativeNetwork
+# NetworkingKit
 
 [简体中文](README.zh-Hans.md)
 
-NativeNetwork is a lightweight, native Swift networking library for iOS and macOS apps. It supports REST, GraphQL, `async/await`, Combine, Swift 6 concurrency, configurable client defaults, error localization, and request interceptors.
+NetworkingKit is a lightweight, native Swift networking library for iOS and macOS apps. It supports REST, GraphQL, `async/await`, Combine, Swift 6 concurrency, configurable client defaults, error localization, and request interceptors.
 
 ## Features
 
@@ -34,7 +34,7 @@ dependencies: [
 ]
 ```
 
-Then add `NativeNetwork` to the target dependencies that use it.
+Then add `NetworkingKit` to the target dependencies that use it.
 
 ## Quick start
 
@@ -44,7 +44,7 @@ An app owns its base URL, `URLSession`, interceptors, decoders, and default conf
 
 ```swift
 import Foundation
-import NativeNetwork
+import NetworkingKit
 
 enum AppNetworkConfiguration {
     static let production = NetworkConfiguration(
@@ -253,7 +253,7 @@ let message = networkError.localizedDescription(
 
 ## Demo
 
-Open `Examples/NativeNetworkDemo/NativeNetworkDemo.xcodeproj` and run either `NativeNetworkDemo-iOS` or `NativeNetworkDemo-macOS`. The demo contains REST, GraphQL, app-level configuration, a bilingual error localizer, and both built-in and custom interceptors.
+Open `Examples/NetworkingKitDemo/NetworkingKitDemo.xcodeproj` and run either `NetworkingKitDemo-iOS` or `NetworkingKitDemo-macOS`. The demo contains REST, GraphQL, app-level configuration, a bilingual error localizer, and both built-in and custom interceptors.
 
 ## License
 

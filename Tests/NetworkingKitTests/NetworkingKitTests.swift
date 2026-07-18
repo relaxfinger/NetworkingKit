@@ -1,16 +1,16 @@
 //
-//  NativeNetworkTests.swift
-//  NativeNetworkTests
+//  NetworkingKitTests.swift
+//  NetworkingKitTests
 //
-//  Copyright (c) 2026 NativeNetwork contributors.
+//  Copyright (c) 2026 NetworkingKit contributors.
 //  Licensed under the MIT License. See LICENSE in the project root for license information.
 //
 
 import Foundation
 import XCTest
-@testable import NativeNetwork
+@testable import NetworkingKit
 
-final class NativeNetworkTests: XCTestCase {
+final class NetworkingKitTests: XCTestCase {
     func testRESTRequestBuildsQueryAndJSONBody() throws {
         let client = makeClient()
         let request = CreateUserRequest(client: client, name: "Ada")

@@ -1,8 +1,8 @@
 //
 //  ContentView.swift
-//  NativeNetworkDemo
+//  NetworkingKitDemo
 //
-//  Copyright (c) 2026 NativeNetwork contributors.
+//  Copyright (c) 2026 NetworkingKit contributors.
 //  Licensed under the MIT License. See LICENSE in the project root for license information.
 //
 
@@ -56,13 +56,13 @@ struct ContentView: View {
                 }
                 .multilineTextAlignment(.center)
 
-                Text("NativeNetwork on \(platformName)\nAppNetworkClient · AppRequest · REST · GraphQL · Interceptors")
+                Text("NetworkingKit on \(platformName)\nAppNetworkClient · AppRequest · REST · GraphQL · Interceptors")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
             }
             .padding()
-            .navigationTitle("NativeNetwork Demo")
+            .navigationTitle("NetworkingKit Demo")
         }
     }
 
