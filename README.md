@@ -30,7 +30,7 @@ Add the package in Xcode through **File > Add Package Dependencies**, or declare
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/relaxfinger/NetworkingKit.git", from: "2.0.0")
+    .package(url: "https://github.com/relaxfinger/NetworkingKit.git", from: "2.3.3")
 ]
 ```
 
@@ -115,11 +115,10 @@ final class AppNetworkClient: NetworkClient, @unchecked Sendable {
 
 Use a base class to avoid repeating the client in every request. Keep this base class free of `NetworkRequest` conformance so a REST or GraphQL subclass can receive the defaults from its own request protocol. Requests inheriting from a class must also be classes; Swift structures cannot inherit from classes.
 
-`AppRequest` is intentionally limited to client and response-type injection. It should not own common headers, authentication, or logging because those responsibilities apply to every request and belong to `NetworkInterceptor`.
+`AppRequest` is intentionally limited to client injection. The concrete REST or GraphQL request declares its own `Response` type, because the response model belongs to that business endpoint. The base class should not own common headers, authentication, or logging because those responsibilities apply to every request and belong to `NetworkInterceptor`.
 
 ```swift
-class AppRequest<T: Decodable & Sendable>: @unchecked Sendable {
-    typealias Response = T
+class AppRequest: @unchecked Sendable {
     let client: any NetworkClient = AppNetworkClient.shared
 }
 ```
@@ -132,7 +131,8 @@ struct User: Decodable, Sendable {
     let name: String
 }
 
-final class GetUserRequest: AppRequest<User>, RestfulRequest, @unchecked Sendable {
+final class GetUserRequest: AppRequest, RestfulRequest, @unchecked Sendable {
+    typealias Response = User
     var path: String { "/users/123" }
     var method: HTTPMethod { .get }
 
@@ -147,7 +147,8 @@ For a JSON request body, return any `Encodable & Sendable` value from `body`. Th
 For successful endpoints with no response body, such as `204 No Content`, use `EmptyResponse` as the response type.
 
 ```swift
-final class DeleteUserRequest: AppRequest<EmptyResponse>, RestfulRequest, @unchecked Sendable {
+final class DeleteUserRequest: AppRequest, RestfulRequest, @unchecked Sendable {
+    typealias Response = EmptyResponse
     var path: String { "/users/123" }
     var method: HTTPMethod { .delete }
     var queryItems: [URLQueryItem]? { nil }
@@ -167,7 +168,8 @@ struct UserProfile: Decodable, Sendable {
     let email: String
 }
 
-final class FetchUserProfileRequest: AppRequest<GraphQLResponse<UserProfile>>, GraphQLRequest, @unchecked Sendable {
+final class FetchUserProfileRequest: AppRequest, GraphQLRequest, @unchecked Sendable {
+    typealias Response = GraphQLResponse<UserProfile>
     var query: String {
         """
         query {

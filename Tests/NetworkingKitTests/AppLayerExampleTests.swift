@@ -31,15 +31,15 @@ private final class AppNetworkClient: NetworkClient, @unchecked Sendable {
     private init() {}
 }
 
-private class AppRequest<T: Decodable & Sendable>: @unchecked Sendable {
-    typealias Response = T
+private class AppRequest: @unchecked Sendable {
     let client: any NetworkClient = AppNetworkClient.shared
 }
 
 private struct User: Codable, Sendable { let id: String }
 private struct UserProfile: Codable, Sendable { let id: String }
 
-private final class GetUserRequest: AppRequest<User>, RestfulRequest, @unchecked Sendable {
+private final class GetUserRequest: AppRequest, RestfulRequest, @unchecked Sendable {
+    typealias Response = User
     var path: String { "/users/123" }
     var method: HTTPMethod { .get }
     var queryItems: [URLQueryItem]? { nil }
@@ -47,6 +47,7 @@ private final class GetUserRequest: AppRequest<User>, RestfulRequest, @unchecked
     var contentType: String? { nil }
 }
 
-private final class FetchUserProfileRequest: AppRequest<GraphQLResponse<UserProfile>>, GraphQLRequest, @unchecked Sendable {
+private final class FetchUserProfileRequest: AppRequest, GraphQLRequest, @unchecked Sendable {
+    typealias Response = GraphQLResponse<UserProfile>
     var query: String { "query { user { id } }" }
 }
