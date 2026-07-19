@@ -187,9 +187,8 @@ struct AppNetworkErrorLocalizer: NetworkErrorLocalizing {
     }
 }
 
-/// An app-specific base type that injects `AppNetworkClient` without selecting a request protocol.
-class AppRequest<T: Decodable & Sendable>: @unchecked Sendable {
-    typealias Response = T
+/// An app-specific base type that injects `AppNetworkClient` without selecting a response model or request protocol.
+class AppRequest: @unchecked Sendable {
     let client: any NetworkClient = AppNetworkClient.shared
 }
 
@@ -202,7 +201,8 @@ struct RESTCharacter: Codable, Sendable {
     let status: String
 }
 
-final class GetCharacterRequest: AppRequest<RESTCharacter>, RestfulRequest, @unchecked Sendable {
+final class GetCharacterRequest: AppRequest, RestfulRequest, @unchecked Sendable {
+    typealias Response = RESTCharacter
     private let id: String
 
     init(id: String) { self.id = id }
@@ -220,7 +220,8 @@ struct GraphQLCharacterPayload: Codable, Sendable {
     let character: Character?
 }
 
-final class FetchCharacterProfileRequest: AppRequest<GraphQLResponse<GraphQLCharacterPayload>>, GraphQLRequest, @unchecked Sendable {
+final class FetchCharacterProfileRequest: AppRequest, GraphQLRequest, @unchecked Sendable {
+    typealias Response = GraphQLResponse<GraphQLCharacterPayload>
     private let id: String
 
     init(id: String) { self.id = id }

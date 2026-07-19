@@ -2,7 +2,13 @@
 
 All notable changes to NetworkingKit are documented in this file.
 
-## 2.3.2 - Unreleased
+## 2.3.3 - 2026-07-19
+
+### Changed
+
+- Keep app-level request base classes model-agnostic: concrete REST and GraphQL requests now declare their own `Response` type in the README, Demo, and app-layer example tests.
+
+## 2.3.2 - 2026-07-19
 
 ### Added
 
