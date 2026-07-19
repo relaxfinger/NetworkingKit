@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-Hans.md)
 
-NetworkingKit is a lightweight, native Swift networking library for iOS and macOS apps. It supports REST, GraphQL, `async/await`, Combine, Swift 6 concurrency, configurable client defaults, error localization, and request interceptors.
+NetworkingKit is a lightweight, native Swift networking library for iOS, macOS, tvOS, and watchOS apps. It supports REST, GraphQL, `async/await`, Combine, Swift 6 concurrency, configurable client defaults, error localization, and request interceptors.
 
 ## Features
 
@@ -30,7 +30,7 @@ Add the package in Xcode through **File > Add Package Dependencies**, or declare
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/relaxfinger/NetworkingKit.git", from: "2.3.6")
+    .package(url: "https://github.com/relaxfinger/NetworkingKit.git", from: "2.3.7")
 ]
 ```
 
@@ -261,31 +261,115 @@ actor AppNetworkObserver: NetworkObserving {
 
 Use `RequestConcurrencyLimiter` as the client’s `executionController` to cap simultaneous transport attempts. Retries and one-time authentication replays each count as an attempt, which prevents failure storms from exhausting device or backend resources.
 
-### Caching, offline mode, and transport security
+### HTTP caching, offline mode, and transport security
 
-Wrap the default transport to cache successful `GET` responses. `returnCacheElseLoad` is cache-first; `returnCacheDontLoad` provides deterministic offline behavior and throws `CacheMissError` when no entry exists.
+Caching is a user-experience feature, not merely a performance optimization: it can make a catalog or profile appear immediately, reduce radio and server work, and keep previously viewed data available without a connection. `CachingTransport` caches only successful `GET` responses. It deliberately leaves writes (`POST`, `PUT`, `PATCH`, and `DELETE`) on the network so an App does not mistake an old write result for a completed mutation.
+
+#### Choose a cache implementation
+
+| Implementation | Lifetime | Best for | Capacity behavior |
+| --- | --- | --- | --- |
+| `InMemoryResponseCache` | The current process only | Small, non-sensitive screen data where a cold launch is acceptable | Bounded number of request keys; least-recently-used keys are evicted |
+| `DiskResponseCache` | Survives App relaunches | Catalogs, articles, reference data, and offline-friendly reads | JSON files in an App-private directory; least-recently-accessed files are removed after `maximumSize` is exceeded |
+| `NetworkResponseCaching` | Your implementation | Encrypted storage, a database, or an App-specific eviction policy | Defined by your implementation |
+
+For a production cache that should survive relaunches, create one cache owned by the client. Do not create a new cache inside `transport`: doing so would discard the cache each time the property is evaluated.
 
 ```swift
-let cache = InMemoryResponseCache(capacity: 200)
-let transport = CachingTransport(
+final class CatalogAPIClient: SharedNetworkClient, @unchecked Sendable {
+    static let shared = CatalogAPIClient()
+
+    let baseURL = URL(string: "https://api.example.com")!
+    let session: URLSession
+
+    private let responseCache = DiskResponseCache(
+        directory: FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("CatalogHTTPResponses", isDirectory: true),
+        maximumSize: 50 * 1_024 * 1_024
+    )
+
+    var transport: any NetworkTransport {
+        CachingTransport(
+            upstream: URLSessionTransport(session: session),
+            cache: responseCache,
+            policy: .returnCacheElseLoad,
+            defaultTTL: 5 * 60
+        )
+    }
+
+    private init() {
+        session = URLSession(configuration: .default)
+    }
+}
+```
+
+#### Choose a read policy
+
+`NetworkCachePolicy` decides whether an existing cached response may satisfy a `GET`. A successful network response is still eligible to refresh the cache for `networkOnly` and `returnCacheElseLoad`.
+
+| Policy | Behavior | Typical use |
+| --- | --- | --- |
+| `.networkOnly` | Always sends the request upstream; bypasses a cache read, then stores an eligible successful response | Pull to refresh, a screen that must show current server state, or debugging |
+| `.returnCacheElseLoad` | Returns a fresh cached response immediately. Missing, expired, or `no-cache` entries go upstream and are revalidated when possible | Default for catalogs, read-only profile data, configuration, and article detail |
+| `.returnCacheDontLoad` | Never contacts the network. Returns a matching cached response even if it is expired; otherwise throws `CacheMissError` | An explicit offline mode or an offline-only screen |
+
+For example, an offline download area can use a second transport composition with the same `DiskResponseCache` and `.returnCacheDontLoad`. Handle `CacheMissError` by explaining that the item has not been downloaded yet.
+
+```swift
+let offlineTransport = CachingTransport(
     upstream: URLSessionTransport(session: session),
-    cache: cache,
-    policy: .returnCacheElseLoad
+    cache: responseCache,
+    policy: .returnCacheDontLoad
 )
 ```
 
-For cache survival across launches and standards-based revalidation, use `DiskResponseCache`. Expired entries automatically send `If-None-Match` when an ETag is available; a `304 Not Modified` response reuses the local body and refreshes its TTL.
+#### Work with the backend's HTTP cache rules
 
-The cache honors request and response `Cache-Control: no-store`, `no-cache`, and `Expires`; it maintains separate response variants for `Vary` headers and never stores `Vary: *` responses. `304 Not Modified` merges its metadata with the cached response before refreshing TTL. The in-memory cache keeps entries in least-recently-used order.
+The App chooses *where* responses are stored and the read policy; the backend should decide *how long* a representation is valid. NetworkingKit uses these standard response headers:
 
-```swift
-let directory = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
-    .appendingPathComponent("NetworkingKitCache")
-let cache = DiskResponseCache(directory: directory, maximumSize: 50 * 1_024 * 1_024)
-let transport = CachingTransport(upstream: URLSessionTransport(session: session), cache: cache)
+| Server header | What NetworkingKit does | Recommended backend use |
+| --- | --- | --- |
+| `Cache-Control: max-age=300` | Treats the response as fresh for 300 seconds | Public or user-safe read data that may be reused briefly |
+| `Cache-Control: no-cache` | Stores the response but requires a network revalidation before reusing it | Data that may be stored locally but must be checked before each reuse |
+| `Cache-Control: no-store` | Does not store the response | Tokens, one-time secrets, highly sensitive account or payment data |
+| `Expires` | Uses it when `max-age` is absent | Legacy backends; prefer `Cache-Control: max-age` for new APIs |
+| `ETag: "version"` | Adds `If-None-Match` for an expired matching entry. On `304 Not Modified`, reuses the local body and refreshes metadata/TTL | Any response where the backend can cheaply determine whether its representation changed |
+| `Vary: Accept-Language` | Stores a separate variant for each relevant request-header value | Localized content, content negotiation, or other header-dependent representations |
+
+When neither `Cache-Control` nor `Expires` is present, `defaultTTL` is used (five minutes by default). If the request itself includes `Cache-Control: no-store`, NetworkingKit neither reads nor writes a cache entry for that request. Responses declaring `Vary: *` are never stored because they cannot be matched safely.
+
+A typical backend flow looks like this:
+
+```text
+1. GET /articles/42 → 200
+   Cache-Control: max-age=300
+   ETag: "article-42-v7"
+
+2. After five minutes, the App sends:
+   GET /articles/42
+   If-None-Match: "article-42-v7"
+
+3. If unchanged, the backend replies 304 Not Modified.
+   NetworkingKit keeps the local response body, merges returned headers, and refreshes its expiry.
 ```
 
-Call `await cache.statistics()` for its file count and total size, and `await cache.removeAll()` to clear it on logout or when the app needs to reclaim storage. Files are pruned by least-recent access when the configured size limit is exceeded.
+This avoids downloading the same JSON body again while still allowing the backend to control freshness. If a stale entry cannot be revalidated because the network fails, `returnCacheElseLoad` surfaces that failure rather than silently presenting stale data; use `.returnCacheDontLoad` only when the product intentionally supports offline data.
+
+#### Operate and invalidate the cache
+
+Inspect a disk cache for diagnostics or storage reporting, and clear user-scoped cached data when the user signs out or switches account. A cache directory must remain App-private; never use a shared location for authenticated responses.
+
+```swift
+let statistics = await responseCache.statistics()
+print("Cache files: \(statistics.entryCount), bytes: \(statistics.totalSize)")
+
+func signOut() async {
+    await responseCache.removeAll()
+    // Clear credentials and App state after the cache is removed.
+}
+```
+
+For data changed by a write, prefer the backend's versioning/ETag rules or clear the relevant cache namespace through a custom `NetworkResponseCaching` implementation. The built-in caches intentionally expose `removeAll()` rather than URL-specific deletion, keeping the default behavior simple and safe.
 
 Use `CertificatePinningEvaluator` and `ServerTrustSessionDelegate` to pin leaf-certificate DER data per host. Keep at least two pins during certificate rotation, and retain normal system trust evaluation before accepting a pin.
 
