@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import CryptoKit
 
 /// Controls how a `CachingTransport` resolves GET requests.
 public enum NetworkCachePolicy: Sendable, Equatable {
@@ -21,7 +22,16 @@ public enum NetworkCachePolicy: Sendable, Equatable {
 /// Stores cached transport responses.
 public protocol NetworkResponseCaching: Sendable {
     func entry(for key: String) async -> CachedHTTPResponse?
+    /// Returns every cached response variant for a base request key.
+    func entries(for key: String) async -> [CachedHTTPResponse]
     func store(_ entry: CachedHTTPResponse, for key: String) async
+}
+
+public extension NetworkResponseCaching {
+    func entries(for key: String) async -> [CachedHTTPResponse] {
+        guard let entry = await entry(for: key) else { return [] }
+        return [entry]
+    }
 }
 
 /// A cached HTTP response with its expiry and revalidation metadata.
@@ -43,21 +53,40 @@ public struct CachedHTTPResponse: Sendable, Codable {
     func matches(_ request: URLRequest) -> Bool {
         varyHeaders.allSatisfy { request.value(forHTTPHeaderField: $0.key) == $0.value }
     }
+
+    func mergingRevalidationHeaders(from response: HTTPURLResponse, defaultTTL: TimeInterval) -> CachedHTTPResponse {
+        let revalidationHeaders = response.headers
+        let mergedHeaders = headers.merging(revalidationHeaders) { _, new in new }
+        return CachedHTTPResponse(
+            data: data,
+            url: response.url ?? url,
+            statusCode: statusCode,
+            headers: mergedHeaders,
+            expiresAt: CacheControl.expiry(headers: mergedHeaders, defaultTTL: defaultTTL),
+            eTag: mergedHeaders.value(forHTTPHeaderField: "ETag"),
+            varyHeaders: varyHeaders
+        )
+    }
 }
 
 /// A bounded, actor-backed in-memory response cache.
 public actor InMemoryResponseCache: NetworkResponseCaching {
     private let capacity: Int
-    private var values: [String: CachedHTTPResponse] = [:]
+    private var values: [String: [String: CachedHTTPResponse]] = [:]
     private var keys: [String] = []
 
     public init(capacity: Int = 100) { self.capacity = max(1, capacity) }
 
     public func entry(for key: String) async -> CachedHTTPResponse? {
-        guard let entry = values[key] else { return nil }
-        keys.removeAll { $0 == key }
-        keys.append(key)
+        guard let variants = values[key], let entry = variants.values.first else { return nil }
+        touch(key)
         return entry
+    }
+
+    public func entries(for key: String) async -> [CachedHTTPResponse] {
+        guard let entries = values[key]?.values else { return [] }
+        touch(key)
+        return Array(entries)
     }
 
     public func store(_ entry: CachedHTTPResponse, for key: String) async {
@@ -65,9 +94,15 @@ public actor InMemoryResponseCache: NetworkResponseCaching {
             values.removeValue(forKey: oldest)
             keys.removeFirst()
         }
+        var variants = values[key] ?? [:]
+        variants[entry.variantIdentifier] = entry
+        values[key] = variants
+        touch(key)
+    }
+
+    private func touch(_ key: String) {
         keys.removeAll { $0 == key }
         keys.append(key)
-        values[key] = entry
     }
 }
 
@@ -81,17 +116,25 @@ public actor DiskResponseCache: NetworkResponseCaching {
     }
 
     public func entry(for key: String) async -> CachedHTTPResponse? {
-        guard let data = try? Data(contentsOf: fileURL(for: key)) else { return nil }
-        return try? JSONDecoder().decode(CachedHTTPResponse.self, from: data)
+        await entries(for: key).last
+    }
+
+    public func entries(for key: String) async -> [CachedHTTPResponse] {
+        guard let data = try? Data(contentsOf: fileURL(for: key)) else { return [] }
+        if let entries = try? JSONDecoder().decode([CachedHTTPResponse].self, from: data) { return entries }
+        return (try? JSONDecoder().decode(CachedHTTPResponse.self, from: data)).map { [$0] } ?? []
     }
 
     public func store(_ entry: CachedHTTPResponse, for key: String) async {
-        guard let data = try? JSONEncoder().encode(entry) else { return }
+        var entries = await entries(for: key)
+        entries.removeAll { $0.variantIdentifier == entry.variantIdentifier }
+        entries.append(entry)
+        guard let data = try? JSONEncoder().encode(entries) else { return }
         try? data.write(to: fileURL(for: key), options: .atomic)
     }
 
     private func fileURL(for key: String) -> URL {
-        let name = Data(key.utf8).base64EncodedString().replacingOccurrences(of: "/", with: "_")
+        let name = SHA256.hash(data: Data(key.utf8)).map { String(format: "%02x", $0) }.joined()
         return directory.appendingPathComponent(name).appendingPathExtension("json")
     }
 }
@@ -112,23 +155,26 @@ public struct CachingTransport: NetworkTransport {
 
     public func send(_ request: URLRequest) async throws -> (Data, URLResponse) {
         let key = cacheKey(for: request)
-        let stored = request.httpMethod == HTTPMethod.get.rawValue ? await cache.entry(for: key) : nil
-        let cached = stored?.matches(request) == true ? stored : nil
+        let requestDisallowsStorage = request.value(forHTTPHeaderField: "Cache-Control")?.lowercased().contains("no-store") == true
+        let cached = request.httpMethod == HTTPMethod.get.rawValue && !requestDisallowsStorage
+            ? await cache.entries(for: key).first(where: { $0.matches(request) })
+            : nil
         if policy == .returnCacheDontLoad, let cached { return (cached.data, cached.makeResponse()) }
         guard policy != .returnCacheDontLoad else { throw CacheMissError() }
-        if policy == .returnCacheElseLoad, let cached, cached.isFresh { return (cached.data, cached.makeResponse()) }
+        if policy == .returnCacheElseLoad, let cached, cached.isFresh, !CacheControl.requiresRevalidation(cached.headers) { return (cached.data, cached.makeResponse()) }
 
         var request = request
         if let eTag = cached?.eTag { request.setValue(eTag, forHTTPHeaderField: "If-None-Match") }
         let result = try await upstream.send(request)
         if let response = result.1 as? HTTPURLResponse, response.statusCode == 304, let cached {
-            let refreshed = makeEntry(data: cached.data, response: response, request: request, fallbackURL: cached.url)
+            let refreshed = cached.mergingRevalidationHeaders(from: response, defaultTTL: defaultTTL)
             await cache.store(refreshed, for: key)
             return (cached.data, refreshed.makeResponse())
         }
         if request.httpMethod == HTTPMethod.get.rawValue,
            let response = result.1 as? HTTPURLResponse,
-           NetworkConstants.HTTPStatus.successRange.contains(response.statusCode), !isNoStore(response) {
+           NetworkConstants.HTTPStatus.successRange.contains(response.statusCode), !requestDisallowsStorage,
+           !isNoStore(response), !response.variesByAllHeaders {
             await cache.store(makeEntry(data: result.0, response: response, request: request, fallbackURL: request.url), for: key)
         }
         return result
@@ -142,33 +188,65 @@ public struct CachingTransport: NetworkTransport {
         let headers = response.allHeaderFields.reduce(into: [String: String]()) { result, item in
             if let key = item.key as? String { result[key] = String(describing: item.value) }
         }
-        let cacheControl = headers.first { $0.key.caseInsensitiveCompare("Cache-Control") == .orderedSame }?.value
-        let directive = cacheControl?.split(separator: ",").first {
-            $0.trimmingCharacters(in: .whitespaces).hasPrefix("max-age=")
-        }
-        let maxAgeValue = directive?.split(separator: "=").last.map(String.init)
-        let expiresValue = headers.first { $0.key.caseInsensitiveCompare("Expires") == .orderedSame }?.value
-        let expires = expiresValue.flatMap { parseHTTPDate($0) }
-        let maxAge = maxAgeValue.flatMap(TimeInterval.init) ?? expires.map { $0.timeIntervalSinceNow } ?? defaultTTL
-        let eTag = headers.first { $0.key.caseInsensitiveCompare("ETag") == .orderedSame }?.value
-        let vary = headers.first { $0.key.caseInsensitiveCompare("Vary") == .orderedSame }?.value
+        let eTag = headers.value(forHTTPHeaderField: "ETag")
+        let vary = headers.value(forHTTPHeaderField: "Vary")
         let varyHeaders = Dictionary(uniqueKeysWithValues: (vary?.split(separator: ",") ?? []).map { name in
             let field = name.trimmingCharacters(in: .whitespaces)
             return (field, request.value(forHTTPHeaderField: field) ?? "")
         })
-        return CachedHTTPResponse(data: data, url: response.url ?? fallbackURL!, statusCode: response.statusCode, headers: headers, expiresAt: Date().addingTimeInterval(maxAge), eTag: eTag, varyHeaders: varyHeaders)
+        return CachedHTTPResponse(data: data, url: response.url ?? fallbackURL!, statusCode: response.statusCode, headers: headers, expiresAt: CacheControl.expiry(headers: headers, defaultTTL: defaultTTL), eTag: eTag, varyHeaders: varyHeaders)
     }
 
     private func isNoStore(_ response: HTTPURLResponse) -> Bool {
         response.value(forHTTPHeaderField: "Cache-Control")?.lowercased().contains("no-store") == true
     }
 
-    private func parseHTTPDate(_ value: String) -> Date? {
+}
+
+private enum CacheControl {
+    static func requiresRevalidation(_ headers: [String: String]) -> Bool {
+        headers.value(forHTTPHeaderField: "Cache-Control")?.lowercased().contains("no-cache") == true
+    }
+
+    static func expiry(headers: [String: String], defaultTTL: TimeInterval) -> Date {
+        let control = headers.value(forHTTPHeaderField: "Cache-Control")?.lowercased() ?? ""
+        if control.contains("no-cache") { return Date() }
+        let maxAge = control.split(separator: ",").first { $0.trimmingCharacters(in: .whitespaces).hasPrefix("max-age=") }
+            .flatMap { TimeInterval($0.split(separator: "=").last ?? "") }
+        let expires = headers.value(forHTTPHeaderField: "Expires").flatMap(parseHTTPDate)
+        return Date().addingTimeInterval(maxAge ?? expires.map { $0.timeIntervalSinceNow } ?? defaultTTL)
+    }
+
+    private static func parseHTTPDate(_ value: String) -> Date? {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.timeZone = TimeZone(secondsFromGMT: 0)
         formatter.dateFormat = "EEE',' dd MMM yyyy HH':'mm':'ss zzz"
         return formatter.date(from: value)
+    }
+}
+
+private extension CachedHTTPResponse {
+    var variantIdentifier: String {
+        varyHeaders.sorted { $0.key < $1.key }.map { "\($0.key.lowercased())=\($0.value)" }.joined(separator: "&")
+    }
+}
+
+private extension Dictionary where Key == String, Value == String {
+    func value(forHTTPHeaderField field: String) -> String? {
+        first { $0.key.caseInsensitiveCompare(field) == .orderedSame }?.value
+    }
+}
+
+private extension HTTPURLResponse {
+    var headers: [String: String] {
+        allHeaderFields.reduce(into: [:]) { result, item in
+            if let key = item.key as? String { result[key] = String(describing: item.value) }
+        }
+    }
+
+    var variesByAllHeaders: Bool {
+        value(forHTTPHeaderField: "Vary")?.split(separator: ",").contains { $0.trimmingCharacters(in: .whitespaces) == "*" } == true
     }
 }
 

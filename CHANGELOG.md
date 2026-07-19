@@ -2,7 +2,15 @@
 
 All notable changes to NetworkingKit are documented in this file.
 
-## 2.2.10 - Unreleased
+## 2.3.1 - Unreleased
+
+### Changed
+
+- Correct HTTP cache revalidation by merging `304 Not Modified` metadata with cached headers.
+- Store independent `Vary` response variants, bypass request `no-store`, honor `no-cache`, and reject `Vary: *` responses.
+- Use SHA-256 disk-cache filenames to avoid URL-derived filename length limits.
+
+## 2.2.10 - 2026-07-18
 
 ### Added
 
