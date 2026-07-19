@@ -183,6 +183,30 @@ final class NetworkingKitTests: XCTestCase {
         XCTAssertEqual(counter.value, 2)
     }
 
+    func testDiskResponseCacheReportsStatisticsAndCanBeCleared() async {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let cache = DiskResponseCache(directory: directory, maximumSize: 10_000)
+        let entry = CachedHTTPResponse(
+            data: Data("cached".utf8),
+            url: URL(string: "https://example.com/cache")!,
+            statusCode: 200,
+            headers: [:],
+            expiresAt: Date().addingTimeInterval(60),
+            eTag: nil,
+            varyHeaders: [:]
+        )
+
+        await cache.store(entry, for: "GET https://example.com/cache")
+        let stored = await cache.statistics()
+        XCTAssertEqual(stored.entryCount, 1)
+        XCTAssertGreaterThan(stored.totalSize, 0)
+
+        await cache.removeAll()
+        let cleared = await cache.statistics()
+        XCTAssertEqual(cleared, .init(entryCount: 0, totalSize: 0))
+    }
+
     func testCircuitBreakerAllowsOneHalfOpenRecoveryProbe() async throws {
         let breaker = CircuitBreaker(failureThreshold: 1, resetTimeout: 0)
 

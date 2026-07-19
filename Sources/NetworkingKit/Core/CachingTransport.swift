@@ -109,9 +109,16 @@ public actor InMemoryResponseCache: NetworkResponseCaching {
 /// A JSON-backed cache that persists entries across app launches.
 public actor DiskResponseCache: NetworkResponseCaching {
     private let directory: URL
+    private let maximumSize: Int
 
-    public init(directory: URL) {
+    /// Creates a persistent cache.
+    ///
+    /// - Parameters:
+    ///   - directory: The private directory that stores cache entries.
+    ///   - maximumSize: Maximum on-disk size in bytes. Least recently accessed files are removed when exceeded.
+    public init(directory: URL, maximumSize: Int = 50 * 1_024 * 1_024) {
         self.directory = directory
+        self.maximumSize = max(0, maximumSize)
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
     }
 
@@ -120,7 +127,9 @@ public actor DiskResponseCache: NetworkResponseCaching {
     }
 
     public func entries(for key: String) async -> [CachedHTTPResponse] {
-        guard let data = try? Data(contentsOf: fileURL(for: key)) else { return [] }
+        let url = fileURL(for: key)
+        guard let data = try? Data(contentsOf: url) else { return [] }
+        try? FileManager.default.setAttributes([.modificationDate: Date()], ofItemAtPath: url.path)
         if let entries = try? JSONDecoder().decode([CachedHTTPResponse].self, from: data) { return entries }
         return (try? JSONDecoder().decode(CachedHTTPResponse.self, from: data)).map { [$0] } ?? []
     }
@@ -131,11 +140,61 @@ public actor DiskResponseCache: NetworkResponseCaching {
         entries.append(entry)
         guard let data = try? JSONEncoder().encode(entries) else { return }
         try? data.write(to: fileURL(for: key), options: .atomic)
+        pruneIfNeeded()
+    }
+
+    /// Removes every persistent cache entry.
+    public func removeAll() {
+        guard let files = try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil) else { return }
+        for file in files where file.pathExtension == "json" {
+            try? FileManager.default.removeItem(at: file)
+        }
+    }
+
+    /// Returns the current persistent-cache footprint.
+    public func statistics() -> DiskResponseCacheStatistics {
+        let files = cacheFiles()
+        return DiskResponseCacheStatistics(entryCount: files.count, totalSize: files.reduce(0) { $0 + $1.size })
     }
 
     private func fileURL(for key: String) -> URL {
         let name = SHA256.hash(data: Data(key.utf8)).map { String(format: "%02x", $0) }.joined()
         return directory.appendingPathComponent(name).appendingPathExtension("json")
+    }
+
+    private func pruneIfNeeded() {
+        var files = cacheFiles().sorted { $0.modificationDate < $1.modificationDate }
+        var totalSize = files.reduce(0) { $0 + $1.size }
+        while totalSize > maximumSize, let oldest = files.first {
+            try? FileManager.default.removeItem(at: oldest.url)
+            totalSize -= oldest.size
+            files.removeFirst()
+        }
+    }
+
+    private func cacheFiles() -> [(url: URL, size: Int, modificationDate: Date)] {
+        let keys: Set<URLResourceKey> = [.fileSizeKey, .contentModificationDateKey]
+        guard let urls = try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: Array(keys)) else { return [] }
+        return urls.compactMap { url in
+            guard url.pathExtension == "json",
+                  let values = try? url.resourceValues(forKeys: keys),
+                  let size = values.fileSize else { return nil }
+            return (url, size, values.contentModificationDate ?? .distantPast)
+        }
+    }
+}
+
+/// A point-in-time view of a `DiskResponseCache` footprint.
+public struct DiskResponseCacheStatistics: Sendable, Equatable {
+    /// The number of cache files currently stored.
+    public let entryCount: Int
+    /// The total cache size in bytes.
+    public let totalSize: Int
+
+    /// Creates disk-cache statistics.
+    public init(entryCount: Int, totalSize: Int) {
+        self.entryCount = entryCount
+        self.totalSize = totalSize
     }
 }
 
