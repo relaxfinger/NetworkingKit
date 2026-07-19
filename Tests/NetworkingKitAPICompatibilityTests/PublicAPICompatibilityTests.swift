@@ -18,6 +18,7 @@ final class PublicAPICompatibilityTests: XCTestCase {
         let client = CompatibilityClient()
         let restRequest = CompatibilityRESTRequest(client: client)
         let graphQLRequest = CompatibilityGraphQLRequest(client: client)
+        assertTypedClient(restRequest)
 
         XCTAssertEqual(try restRequest.buildURLRequest().url?.path, "/v1/users")
         XCTAssertEqual(try graphQLRequest.buildURLRequest().url?.path, "/graphql")
@@ -52,7 +53,11 @@ final class PublicAPICompatibilityTests: XCTestCase {
     }
 }
 
-private final class CompatibilityClient: NetworkClient, @unchecked Sendable {
+private func assertTypedClient<Request: NetworkRequest>(_ request: Request)
+where Request.Client == CompatibilityClient, Request.Response == CompatibilityUser {}
+
+private final class CompatibilityClient: SharedNetworkClient, @unchecked Sendable {
+    static let shared = CompatibilityClient()
     let baseURL = URL(string: "https://api.example.com")!
     let session = URLSession(configuration: .ephemeral)
     let interceptors: [any NetworkInterceptor] = []
@@ -65,7 +70,7 @@ private struct CompatibilityUser: Decodable, Sendable {
 private struct CompatibilityRESTRequest: RestfulRequest {
     typealias Response = CompatibilityUser
 
-    let client: any NetworkClient
+    let client: CompatibilityClient
     let path = "/v1/users"
     let method: HTTPMethod = .get
     let queryItems: [URLQueryItem]? = nil
@@ -76,6 +81,6 @@ private struct CompatibilityRESTRequest: RestfulRequest {
 private struct CompatibilityGraphQLRequest: GraphQLRequest {
     typealias Response = GraphQLResponse<CompatibilityUser>
 
-    let client: any NetworkClient
+    let client: CompatibilityClient
     let query = "query CurrentUser { user { id } }"
 }

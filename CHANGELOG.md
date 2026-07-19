@@ -2,6 +2,17 @@
 
 All notable changes to NetworkingKit are documented in this file.
 
+## 2.3.4 - 2026-07-19
+
+### Added
+
+- Add `SharedNetworkClient` for application clients exposed through a typed shared instance.
+
+### Changed
+
+- Bind `NetworkRequest` to both concrete `Client` and `Response` types, eliminating request-level `any NetworkClient` erasure.
+- Update the Demo, tests, and English and Chinese READMEs with an `AppNetworkRequest<ClientType>` base-class pattern.
+
 ## 2.3.3 - 2026-07-19
 
 ### Changed

@@ -39,7 +39,7 @@ private final class BenchmarkClient: NetworkClient, @unchecked Sendable {
 private struct BenchmarkRequest: RestfulRequest {
     typealias Response = BenchmarkUser
 
-    let client: any NetworkClient
+    let client: BenchmarkClient
     let path = "/v1/users"
     let method: HTTPMethod = .post
     let queryItems: [URLQueryItem]? = [.init(name: "page", value: "1")]

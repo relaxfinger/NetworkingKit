@@ -56,6 +56,14 @@ public protocol NetworkClient: AnyObject, Sendable {
     var retryPolicy: RetryPolicy { get }
 }
 
+/// A network client exposed as a shared instance by an application.
+///
+/// App-level request base types can constrain their client to this protocol and use
+/// `Client.shared` without erasing the concrete client type.
+public protocol SharedNetworkClient: NetworkClient {
+    static var shared: Self { get }
+}
+
 public extension NetworkClient {
     var transport: any NetworkTransport { URLSessionTransport(session: session) }
     var authentication: (any AuthenticationRefreshing)? { nil }

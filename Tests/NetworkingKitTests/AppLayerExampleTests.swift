@@ -12,6 +12,9 @@ import XCTest
 
 final class AppLayerExampleTests: XCTestCase {
     func testClassBasedAppRequestPatternBuildsRESTAndGraphQLRequests() throws {
+        assertAccountClient(GetUserRequest())
+        assertAccountClient(FetchUserProfileRequest())
+
         let rest = try GetUserRequest().buildURLRequest()
         XCTAssertEqual(rest.url?.absoluteString, "https://api.example.com/users/123")
 
@@ -23,7 +26,9 @@ final class AppLayerExampleTests: XCTestCase {
     }
 }
 
-private final class AppNetworkClient: NetworkClient, @unchecked Sendable {
+private func assertAccountClient<Request: NetworkRequest>(_ request: Request) where Request.Client == AppNetworkClient {}
+
+private final class AppNetworkClient: SharedNetworkClient, @unchecked Sendable {
     static let shared = AppNetworkClient()
     let baseURL = URL(string: "https://api.example.com")!
     let session: URLSession = .shared
@@ -31,9 +36,12 @@ private final class AppNetworkClient: NetworkClient, @unchecked Sendable {
     private init() {}
 }
 
-private class AppRequest: @unchecked Sendable {
-    let client: any NetworkClient = AppNetworkClient.shared
+private class AppNetworkRequest<ClientType: SharedNetworkClient>: @unchecked Sendable {
+    typealias Client = ClientType
+    var client: ClientType { .shared }
 }
+
+private class AppRequest: AppNetworkRequest<AppNetworkClient>, @unchecked Sendable {}
 
 private struct User: Codable, Sendable { let id: String }
 private struct UserProfile: Codable, Sendable { let id: String }
