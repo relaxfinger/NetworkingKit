@@ -257,9 +257,11 @@ let transport = CachingTransport(
 ```swift
 let directory = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
     .appendingPathComponent("NetworkingKitCache")
-let cache = DiskResponseCache(directory: directory)
+let cache = DiskResponseCache(directory: directory, maximumSize: 50 * 1_024 * 1_024)
 let transport = CachingTransport(upstream: URLSessionTransport(session: session), cache: cache)
 ```
+
+可通过 `await cache.statistics()` 查看文件数量和总大小；用户退出登录或 App 需要回收空间时调用 `await cache.removeAll()` 清空。超过配置容量后，会按最近最少访问顺序清理文件。
 
 使用 `CertificatePinningEvaluator` 和 `ServerTrustSessionDelegate` 可按 Host 固定叶子证书的 DER 数据。证书轮换期间至少保留两个 pin，并在接受 pin 前继续使用系统信任校验。
 

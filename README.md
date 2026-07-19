@@ -276,9 +276,11 @@ The cache honors request and response `Cache-Control: no-store`, `no-cache`, and
 ```swift
 let directory = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
     .appendingPathComponent("NetworkingKitCache")
-let cache = DiskResponseCache(directory: directory)
+let cache = DiskResponseCache(directory: directory, maximumSize: 50 * 1_024 * 1_024)
 let transport = CachingTransport(upstream: URLSessionTransport(session: session), cache: cache)
 ```
+
+Call `await cache.statistics()` for its file count and total size, and `await cache.removeAll()` to clear it on logout or when the app needs to reclaim storage. Files are pruned by least-recent access when the configured size limit is exceeded.
 
 Use `CertificatePinningEvaluator` and `ServerTrustSessionDelegate` to pin leaf-certificate DER data per host. Keep at least two pins during certificate rotation, and retain normal system trust evaluation before accepting a pin.
 

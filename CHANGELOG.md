@@ -2,7 +2,13 @@
 
 All notable changes to NetworkingKit are documented in this file.
 
-## 2.3.1 - Unreleased
+## 2.3.2 - Unreleased
+
+### Added
+
+- Configurable disk-cache capacity, least-recent-access pruning, footprint statistics, and explicit clearing.
+
+## 2.3.1 - 2026-07-19
 
 ### Changed
 
