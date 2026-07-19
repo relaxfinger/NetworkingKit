@@ -116,6 +116,73 @@ final class NetworkingKitTests: XCTestCase {
         XCTAssertEqual(counter.value, 1)
     }
 
+    func testCachingTransportKeepsSeparateVaryVariants() async throws {
+        let counter = AttemptCounter()
+        let upstream = StubTransport { request in
+            _ = counter.increment()
+            let language = request.value(forHTTPHeaderField: "Accept-Language") ?? "unknown"
+            let response = HTTPURLResponse(
+                url: try! XCTUnwrap(request.url),
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: ["Cache-Control": "max-age=60", "Vary": "Accept-Language"]
+            )!
+            return (response, Data(language.utf8))
+        }
+        let transport = CachingTransport(upstream: upstream, cache: InMemoryResponseCache())
+        let url = URL(string: "https://example.com/greeting")!
+        var english = URLRequest(url: url)
+        english.setValue("en", forHTTPHeaderField: "Accept-Language")
+        var chinese = URLRequest(url: url)
+        chinese.setValue("zh-Hans", forHTTPHeaderField: "Accept-Language")
+
+        _ = try await transport.send(english)
+        _ = try await transport.send(chinese)
+        let result = try await transport.send(english)
+
+        XCTAssertEqual(String(data: result.0, encoding: .utf8), "en")
+        XCTAssertEqual(counter.value, 2)
+    }
+
+    func testCachingTransportMerges304HeadersWithCachedResponse() async throws {
+        let counter = AttemptCounter()
+        let upstream = StubTransport { request in
+            let attempt = counter.increment()
+            let headers = attempt == 1
+                ? ["Cache-Control": "max-age=0", "ETag": "v1", "Content-Type": "application/json"]
+                : ["Cache-Control": "max-age=60"]
+            let statusCode = attempt == 1 ? 200 : 304
+            let response = HTTPURLResponse(url: try! XCTUnwrap(request.url), statusCode: statusCode, httpVersion: nil, headerFields: headers)!
+            return (response, Data("cached".utf8))
+        }
+        let transport = CachingTransport(upstream: upstream, cache: InMemoryResponseCache())
+        let request = URLRequest(url: URL(string: "https://example.com/revalidate")!)
+
+        _ = try await transport.send(request)
+        let revalidated = try await transport.send(request)
+        _ = try await transport.send(request)
+
+        let response = revalidated.1 as? HTTPURLResponse
+        XCTAssertEqual(response?.value(forHTTPHeaderField: "Content-Type"), "application/json")
+        XCTAssertEqual(counter.value, 2)
+    }
+
+    func testCachingTransportDoesNotStoreVaryAllResponses() async throws {
+        let counter = AttemptCounter()
+        let upstream = StubTransport { request in
+            _ = counter.increment()
+            let response = HTTPURLResponse(url: try! XCTUnwrap(request.url), statusCode: 200, httpVersion: nil, headerFields: ["Vary": "*"])!
+            return (response, Data())
+        }
+        let transport = CachingTransport(upstream: upstream, cache: InMemoryResponseCache())
+        let request = URLRequest(url: URL(string: "https://example.com/private")!)
+
+        _ = try await transport.send(request)
+        _ = try await transport.send(request)
+
+        XCTAssertEqual(counter.value, 2)
+    }
+
     func testCircuitBreakerAllowsOneHalfOpenRecoveryProbe() async throws {
         let breaker = CircuitBreaker(failureThreshold: 1, resetTimeout: 0)
 

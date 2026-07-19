@@ -271,7 +271,7 @@ let transport = CachingTransport(
 
 For cache survival across launches and standards-based revalidation, use `DiskResponseCache`. Expired entries automatically send `If-None-Match` when an ETag is available; a `304 Not Modified` response reuses the local body and refreshes its TTL.
 
-The cache also honors `Cache-Control: no-store`, supports `Expires`, validates `Vary` request headers before reuse, and keeps the in-memory cache in least-recently-used order.
+The cache honors request and response `Cache-Control: no-store`, `no-cache`, and `Expires`; it maintains separate response variants for `Vary` headers and never stores `Vary: *` responses. `304 Not Modified` merges its metadata with the cached response before refreshing TTL. The in-memory cache keeps entries in least-recently-used order.
 
 ```swift
 let directory = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
