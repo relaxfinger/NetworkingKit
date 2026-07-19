@@ -11,7 +11,7 @@ import XCTest
 @testable import NetworkingKit
 
 final class AppLayerExampleTests: XCTestCase {
-    func testClassBasedAppRequestPatternBuildsRESTAndGraphQLRequests() throws {
+    func testProtocolBasedAppRequestPatternBuildsRESTAndGraphQLRequests() throws {
         assertAccountClient(GetUserRequest())
         assertAccountClient(FetchUserProfileRequest())
 
@@ -36,15 +36,16 @@ private final class AppNetworkClient: SharedNetworkClient, @unchecked Sendable {
     private init() {}
 }
 
-private class AppNetworkRequest: @unchecked Sendable {
-    typealias Client = AppNetworkClient
+private protocol AppNetworkRequest: NetworkRequest where Client == AppNetworkClient {}
+
+private extension AppNetworkRequest {
     var client: AppNetworkClient { .shared }
 }
 
 private struct User: Codable, Sendable { let id: String }
 private struct UserProfile: Codable, Sendable { let id: String }
 
-private final class GetUserRequest: AppNetworkRequest, RestfulRequest, @unchecked Sendable {
+private struct GetUserRequest: AppNetworkRequest, RestfulRequest {
     typealias Response = User
     var path: String { "/users/123" }
     var method: HTTPMethod { .get }
@@ -53,7 +54,7 @@ private final class GetUserRequest: AppNetworkRequest, RestfulRequest, @unchecke
     var contentType: String? { nil }
 }
 
-private final class FetchUserProfileRequest: AppNetworkRequest, GraphQLRequest, @unchecked Sendable {
+private struct FetchUserProfileRequest: AppNetworkRequest, GraphQLRequest {
     typealias Response = GraphQLResponse<UserProfile>
     var query: String { "query { user { id } }" }
 }

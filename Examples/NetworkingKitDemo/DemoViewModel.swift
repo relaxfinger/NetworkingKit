@@ -187,9 +187,10 @@ struct AppNetworkErrorLocalizer: NetworkErrorLocalizing {
     }
 }
 
-/// The request base for endpoints served by `AppNetworkClient`.
-class AppNetworkRequest: @unchecked Sendable {
-    typealias Client = AppNetworkClient
+/// The request contract for endpoints served by `AppNetworkClient`.
+protocol AppNetworkRequest: NetworkRequest where Client == AppNetworkClient {}
+
+extension AppNetworkRequest {
     var client: AppNetworkClient { .shared }
 }
 
@@ -202,7 +203,7 @@ struct RESTCharacter: Codable, Sendable {
     let status: String
 }
 
-final class GetCharacterRequest: AppNetworkRequest, RestfulRequest, @unchecked Sendable {
+struct GetCharacterRequest: AppNetworkRequest, RestfulRequest {
     typealias Response = RESTCharacter
     private let id: String
 
@@ -221,7 +222,7 @@ struct GraphQLCharacterPayload: Codable, Sendable {
     let character: Character?
 }
 
-final class FetchCharacterProfileRequest: AppNetworkRequest, GraphQLRequest, @unchecked Sendable {
+struct FetchCharacterProfileRequest: AppNetworkRequest, GraphQLRequest {
     typealias Response = GraphQLResponse<GraphQLCharacterPayload>
     private let id: String
 

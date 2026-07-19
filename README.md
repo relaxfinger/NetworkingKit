@@ -30,7 +30,7 @@ Add the package in Xcode through **File > Add Package Dependencies**, or declare
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/relaxfinger/NetworkingKit.git", from: "2.3.4")
+    .package(url: "https://github.com/relaxfinger/NetworkingKit.git", from: "2.3.6")
 ]
 ```
 
@@ -111,16 +111,15 @@ final class AppNetworkClient: SharedNetworkClient, @unchecked Sendable {
 
 `NetworkConfiguration` is immutable and scoped to one client. A request can still override `timeoutInterval` when a specific endpoint needs a different timeout. `makeEncoder()` and `makeDecoder()` create a fresh codec per operation, avoiding shared mutable codec configuration. Configure app-wide headers, authentication, request signing, logging, and metrics in `interceptors`; do not add them to `AppRequest`.
 
-### 2. Add an app request base class
+### 2. Add an app request protocol
 
-Use a base class to avoid repeating the client in every request. Keep this base class free of `NetworkRequest` conformance so a REST or GraphQL subclass can receive the defaults from its own request protocol. Requests inheriting from a class must also be classes; Swift structures cannot inherit from classes.
-
-`NetworkRequest` binds both a concrete `Client` type and a `Response` type. `AppNetworkRequest` directly fixes `AppNetworkClient` without erasing it to `any NetworkClient`; the concrete REST or GraphQL request declares only its `Response`. This makes it impossible to accidentally use a request from one backend family with another backend's client. When an app has multiple backend clients, define one equivalent request base class per client. The base class should not own common headers, authentication, or logging because those responsibilities apply to every request and belong to `NetworkInterceptor`.
+Use an app-level protocol to avoid repeating the client in every request. `NetworkRequest` binds both a concrete `Client` type and a `Response` type. `AppNetworkRequest` directly constrains `Client` to `AppNetworkClient` without erasing it to `any NetworkClient`; each REST or GraphQL request declares only its `Response`. This makes it impossible to accidentally use a request from one backend family with another backend's client. When an app has multiple backend clients, define one equivalent request protocol per client. This pattern works with both structures and classes. The protocol should not own common headers, authentication, or logging because those responsibilities apply to every request and belong to `NetworkInterceptor`.
 
 ```swift
-class AppNetworkRequest: @unchecked Sendable {
-    typealias Client = AppNetworkClient
+protocol AppNetworkRequest: NetworkRequest
+where Client == AppNetworkClient {}
 
+extension AppNetworkRequest {
     var client: AppNetworkClient {
         .shared
     }
@@ -135,7 +134,7 @@ struct User: Decodable, Sendable {
     let name: String
 }
 
-final class GetUserRequest: AppNetworkRequest, RestfulRequest, @unchecked Sendable {
+struct GetUserRequest: AppNetworkRequest, RestfulRequest {
     typealias Response = User
     var path: String { "/users/123" }
     var method: HTTPMethod { .get }
@@ -151,7 +150,7 @@ For a JSON request body, return any `Encodable & Sendable` value from `body`. Th
 For successful endpoints with no response body, such as `204 No Content`, use `EmptyResponse` as the response type.
 
 ```swift
-final class DeleteUserRequest: AppNetworkRequest, RestfulRequest, @unchecked Sendable {
+struct DeleteUserRequest: AppNetworkRequest, RestfulRequest {
     typealias Response = EmptyResponse
     var path: String { "/users/123" }
     var method: HTTPMethod { .delete }
@@ -172,7 +171,7 @@ struct UserProfile: Decodable, Sendable {
     let email: String
 }
 
-final class FetchUserProfileRequest: AppNetworkRequest, GraphQLRequest, @unchecked Sendable {
+struct FetchUserProfileRequest: AppNetworkRequest, GraphQLRequest {
     typealias Response = GraphQLResponse<UserProfile>
     var query: String {
         """
