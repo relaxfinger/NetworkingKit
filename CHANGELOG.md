@@ -2,6 +2,12 @@
 
 All notable changes to NetworkingKit are documented in this file.
 
+## 2.3.6 - 2026-07-19
+
+### Changed
+
+- Replace App-layer request-base class examples with client-constrained request protocols that provide a default shared client and support both structures and classes.
+
 ## 2.3.5 - 2026-07-19
 
 ### Changed
