@@ -115,18 +115,16 @@ final class AppNetworkClient: SharedNetworkClient, @unchecked Sendable {
 
 Use a base class to avoid repeating the client in every request. Keep this base class free of `NetworkRequest` conformance so a REST or GraphQL subclass can receive the defaults from its own request protocol. Requests inheriting from a class must also be classes; Swift structures cannot inherit from classes.
 
-`NetworkRequest` binds both a concrete `Client` type and a `Response` type. `AppNetworkRequest` fixes the client family without erasing it to `any NetworkClient`; the concrete REST or GraphQL request declares only its `Response`. This makes it impossible to accidentally use a request from one backend family with another backend's client. The base class should not own common headers, authentication, or logging because those responsibilities apply to every request and belong to `NetworkInterceptor`.
+`NetworkRequest` binds both a concrete `Client` type and a `Response` type. `AppNetworkRequest` directly fixes `AppNetworkClient` without erasing it to `any NetworkClient`; the concrete REST or GraphQL request declares only its `Response`. This makes it impossible to accidentally use a request from one backend family with another backend's client. When an app has multiple backend clients, define one equivalent request base class per client. The base class should not own common headers, authentication, or logging because those responsibilities apply to every request and belong to `NetworkInterceptor`.
 
 ```swift
-class AppNetworkRequest<ClientType: SharedNetworkClient>: @unchecked Sendable {
-    typealias Client = ClientType
+class AppNetworkRequest: @unchecked Sendable {
+    typealias Client = AppNetworkClient
 
-    var client: ClientType {
+    var client: AppNetworkClient {
         .shared
     }
 }
-
-class AppRequest: AppNetworkRequest<AppNetworkClient>, @unchecked Sendable {}
 ```
 
 ### 3. Define a REST request
@@ -137,7 +135,7 @@ struct User: Decodable, Sendable {
     let name: String
 }
 
-final class GetUserRequest: AppRequest, RestfulRequest, @unchecked Sendable {
+final class GetUserRequest: AppNetworkRequest, RestfulRequest, @unchecked Sendable {
     typealias Response = User
     var path: String { "/users/123" }
     var method: HTTPMethod { .get }
@@ -153,7 +151,7 @@ For a JSON request body, return any `Encodable & Sendable` value from `body`. Th
 For successful endpoints with no response body, such as `204 No Content`, use `EmptyResponse` as the response type.
 
 ```swift
-final class DeleteUserRequest: AppRequest, RestfulRequest, @unchecked Sendable {
+final class DeleteUserRequest: AppNetworkRequest, RestfulRequest, @unchecked Sendable {
     typealias Response = EmptyResponse
     var path: String { "/users/123" }
     var method: HTTPMethod { .delete }
@@ -174,7 +172,7 @@ struct UserProfile: Decodable, Sendable {
     let email: String
 }
 
-final class FetchUserProfileRequest: AppRequest, GraphQLRequest, @unchecked Sendable {
+final class FetchUserProfileRequest: AppNetworkRequest, GraphQLRequest, @unchecked Sendable {
     typealias Response = GraphQLResponse<UserProfile>
     var query: String {
         """

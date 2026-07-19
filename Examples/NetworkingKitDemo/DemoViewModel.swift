@@ -187,14 +187,11 @@ struct AppNetworkErrorLocalizer: NetworkErrorLocalizing {
     }
 }
 
-/// An app-specific generic base type that binds a request family to one shared client.
-class AppNetworkRequest<ClientType: SharedNetworkClient>: @unchecked Sendable {
-    typealias Client = ClientType
-    var client: ClientType { .shared }
-}
-
 /// The request base for endpoints served by `AppNetworkClient`.
-class AppRequest: AppNetworkRequest<AppNetworkClient>, @unchecked Sendable {}
+class AppNetworkRequest: @unchecked Sendable {
+    typealias Client = AppNetworkClient
+    var client: AppNetworkClient { .shared }
+}
 
 // MARK: - REST
 
@@ -205,7 +202,7 @@ struct RESTCharacter: Codable, Sendable {
     let status: String
 }
 
-final class GetCharacterRequest: AppRequest, RestfulRequest, @unchecked Sendable {
+final class GetCharacterRequest: AppNetworkRequest, RestfulRequest, @unchecked Sendable {
     typealias Response = RESTCharacter
     private let id: String
 
@@ -224,7 +221,7 @@ struct GraphQLCharacterPayload: Codable, Sendable {
     let character: Character?
 }
 
-final class FetchCharacterProfileRequest: AppRequest, GraphQLRequest, @unchecked Sendable {
+final class FetchCharacterProfileRequest: AppNetworkRequest, GraphQLRequest, @unchecked Sendable {
     typealias Response = GraphQLResponse<GraphQLCharacterPayload>
     private let id: String
 

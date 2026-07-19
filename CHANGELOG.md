@@ -2,6 +2,12 @@
 
 All notable changes to NetworkingKit are documented in this file.
 
+## 2.3.5 - 2026-07-19
+
+### Changed
+
+- Make every App-layer request-base example bind its own concrete client directly, rather than exposing a generic `SharedNetworkClient` constraint.
+
 ## 2.3.4 - 2026-07-19
 
 ### Added

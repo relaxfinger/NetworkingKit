@@ -36,17 +36,15 @@ private final class AppNetworkClient: SharedNetworkClient, @unchecked Sendable {
     private init() {}
 }
 
-private class AppNetworkRequest<ClientType: SharedNetworkClient>: @unchecked Sendable {
-    typealias Client = ClientType
-    var client: ClientType { .shared }
+private class AppNetworkRequest: @unchecked Sendable {
+    typealias Client = AppNetworkClient
+    var client: AppNetworkClient { .shared }
 }
-
-private class AppRequest: AppNetworkRequest<AppNetworkClient>, @unchecked Sendable {}
 
 private struct User: Codable, Sendable { let id: String }
 private struct UserProfile: Codable, Sendable { let id: String }
 
-private final class GetUserRequest: AppRequest, RestfulRequest, @unchecked Sendable {
+private final class GetUserRequest: AppNetworkRequest, RestfulRequest, @unchecked Sendable {
     typealias Response = User
     var path: String { "/users/123" }
     var method: HTTPMethod { .get }
@@ -55,7 +53,7 @@ private final class GetUserRequest: AppRequest, RestfulRequest, @unchecked Senda
     var contentType: String? { nil }
 }
 
-private final class FetchUserProfileRequest: AppRequest, GraphQLRequest, @unchecked Sendable {
+private final class FetchUserProfileRequest: AppNetworkRequest, GraphQLRequest, @unchecked Sendable {
     typealias Response = GraphQLResponse<UserProfile>
     var query: String { "query { user { id } }" }
 }
