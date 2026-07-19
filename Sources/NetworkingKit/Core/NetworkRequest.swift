@@ -10,11 +10,15 @@ import Foundation
 @preconcurrency import Combine
 
 /// The base protocol for all network requests.
-public protocol NetworkRequest: Sendable {
+///
+/// `Client` keeps a request bound to its owning backend configuration at compile time,
+/// while `Response` describes the model decoded from a successful response.
+public protocol NetworkRequest<Client, Response>: Sendable {
+    associatedtype Client: NetworkClient
     associatedtype Response: Decodable & Sendable
     
     /// The client supplied by an app-specific base type or concrete request.
-    var client: any NetworkClient { get }
+    var client: Client { get }
     
     /// The request path relative to the client's base URL.
     var path: String { get }

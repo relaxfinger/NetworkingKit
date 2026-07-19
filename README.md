@@ -30,7 +30,7 @@ Add the package in Xcode through **File > Add Package Dependencies**, or declare
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/relaxfinger/NetworkingKit.git", from: "2.3.3")
+    .package(url: "https://github.com/relaxfinger/NetworkingKit.git", from: "2.3.4")
 ]
 ```
 
@@ -74,7 +74,7 @@ actor TokenStore: AccessTokenProviding {
     }
 }
 
-final class AppNetworkClient: NetworkClient, @unchecked Sendable {
+final class AppNetworkClient: SharedNetworkClient, @unchecked Sendable {
     static let shared = AppNetworkClient()
 
     let baseURL = URL(string: "https://api.example.com")!
@@ -115,12 +115,18 @@ final class AppNetworkClient: NetworkClient, @unchecked Sendable {
 
 Use a base class to avoid repeating the client in every request. Keep this base class free of `NetworkRequest` conformance so a REST or GraphQL subclass can receive the defaults from its own request protocol. Requests inheriting from a class must also be classes; Swift structures cannot inherit from classes.
 
-`AppRequest` is intentionally limited to client injection. The concrete REST or GraphQL request declares its own `Response` type, because the response model belongs to that business endpoint. The base class should not own common headers, authentication, or logging because those responsibilities apply to every request and belong to `NetworkInterceptor`.
+`NetworkRequest` binds both a concrete `Client` type and a `Response` type. `AppNetworkRequest` fixes the client family without erasing it to `any NetworkClient`; the concrete REST or GraphQL request declares only its `Response`. This makes it impossible to accidentally use a request from one backend family with another backend's client. The base class should not own common headers, authentication, or logging because those responsibilities apply to every request and belong to `NetworkInterceptor`.
 
 ```swift
-class AppRequest: @unchecked Sendable {
-    let client: any NetworkClient = AppNetworkClient.shared
+class AppNetworkRequest<ClientType: SharedNetworkClient>: @unchecked Sendable {
+    typealias Client = ClientType
+
+    var client: ClientType {
+        .shared
+    }
 }
+
+class AppRequest: AppNetworkRequest<AppNetworkClient>, @unchecked Sendable {}
 ```
 
 ### 3. Define a REST request

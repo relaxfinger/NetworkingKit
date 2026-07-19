@@ -452,7 +452,7 @@ private struct ResponseEnvelope: Decodable {
 
 private struct GetUserRequest: RestfulRequest {
     typealias Response = User
-    let client: any NetworkClient
+    let client: TestClient
     let id: String
     var path: String { "users/\(id)" }
     var method: HTTPMethod { .get }
@@ -463,7 +463,7 @@ private struct GetUserRequest: RestfulRequest {
 
 private struct CreateUserRequest: RestfulRequest {
     typealias Response = User
-    let client: any NetworkClient
+    let client: TestClient
     let name: String
     var path: String { "users" }
     var method: HTTPMethod { .post }
@@ -474,7 +474,7 @@ private struct CreateUserRequest: RestfulRequest {
 
 private struct DeleteUserRequest: RestfulRequest {
     typealias Response = EmptyResponse
-    let client: any NetworkClient
+    let client: TestClient
     let id: String
     var path: String { "users/\(id)" }
     var method: HTTPMethod { .delete }
@@ -485,7 +485,7 @@ private struct DeleteUserRequest: RestfulRequest {
 
 private struct UserGraphQLRequest: GraphQLRequest {
     typealias Response = GraphQLResponse<User>
-    let client: any NetworkClient
+    let client: TestClient
     let query = "query User { user { id name } }"
 }
 

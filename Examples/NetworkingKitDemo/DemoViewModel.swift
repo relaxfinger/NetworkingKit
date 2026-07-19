@@ -80,7 +80,7 @@ private enum AppNetworkConfiguration {
     )
 }
 
-final class AppNetworkClient: NetworkClient, @unchecked Sendable {
+final class AppNetworkClient: SharedNetworkClient, @unchecked Sendable {
     static let shared = AppNetworkClient()
 
     let baseURL = URL(string: "https://rickandmortyapi.com")!
@@ -187,10 +187,14 @@ struct AppNetworkErrorLocalizer: NetworkErrorLocalizing {
     }
 }
 
-/// An app-specific base type that injects `AppNetworkClient` without selecting a response model or request protocol.
-class AppRequest: @unchecked Sendable {
-    let client: any NetworkClient = AppNetworkClient.shared
+/// An app-specific generic base type that binds a request family to one shared client.
+class AppNetworkRequest<ClientType: SharedNetworkClient>: @unchecked Sendable {
+    typealias Client = ClientType
+    var client: ClientType { .shared }
 }
+
+/// The request base for endpoints served by `AppNetworkClient`.
+class AppRequest: AppNetworkRequest<AppNetworkClient>, @unchecked Sendable {}
 
 // MARK: - REST
 

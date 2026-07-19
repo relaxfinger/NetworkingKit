@@ -64,7 +64,7 @@ private func performRequest<Request: NetworkRequest>(_ request: Request) async t
     }
 }
 
-private func notify(_ event: NetworkEvent, for client: any NetworkClient) async {
+private func notify<Client: NetworkClient>(_ event: NetworkEvent, for client: Client) async {
     for observer in client.observers { await observer.record(event) }
 }
 
