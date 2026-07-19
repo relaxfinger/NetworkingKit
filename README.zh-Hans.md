@@ -110,18 +110,16 @@ final class AppNetworkClient: SharedNetworkClient, @unchecked Sendable {
 ### 2. 创建 App Request 基类
 
 ```swift
-class AppNetworkRequest<ClientType: SharedNetworkClient>: @unchecked Sendable {
-    typealias Client = ClientType
+class AppNetworkRequest: @unchecked Sendable {
+    typealias Client = AppNetworkClient
 
-    var client: ClientType {
+    var client: AppNetworkClient {
         .shared
     }
 }
-
-class AppRequest: AppNetworkRequest<AppNetworkClient>, @unchecked Sendable {}
 ```
 
-采用基类时，业务 Request 也必须是 class，因为 Swift 的 `struct` 不能继承 class。基类不应直接遵循 `NetworkRequest`，以便 REST 或 GraphQL 子类获得其各自协议提供的默认值。`NetworkRequest` 同时绑定具体的 `Client` 类型与 `Response` 类型；`AppNetworkRequest` 固定 Client 类型但不使用 `any NetworkClient` 抹除它，具体 REST 或 GraphQL 请求只声明自身的 `Response`。这样能在编译期避免某个后端的 Request 被错误地绑定到另一个后端的 Client。`AppRequest` 不应承载通用 Header、认证或日志；这些跨请求职责属于 `NetworkInterceptor`。
+采用基类时，业务 Request 也必须是 class，因为 Swift 的 `struct` 不能继承 class。基类不应直接遵循 `NetworkRequest`，以便 REST 或 GraphQL 子类获得其各自协议提供的默认值。`NetworkRequest` 同时绑定具体的 `Client` 类型与 `Response` 类型；`AppNetworkRequest` 直接固定为 `AppNetworkClient`，但不使用 `any NetworkClient` 抹除它，具体 REST 或 GraphQL 请求只声明自身的 `Response`。这样能在编译期避免某个后端的 Request 被错误地绑定到另一个后端的 Client。有多个后端 Client 时，为每个 Client 定义一个等价的请求基类。`AppNetworkRequest` 不应承载通用 Header、认证或日志；这些跨请求职责属于 `NetworkInterceptor`。
 
 ### 3. REST 请求
 
@@ -131,7 +129,7 @@ struct User: Decodable, Sendable {
     let name: String
 }
 
-final class GetUserRequest: AppRequest, RestfulRequest, @unchecked Sendable {
+final class GetUserRequest: AppNetworkRequest, RestfulRequest, @unchecked Sendable {
     typealias Response = User
     var path: String { "/users/123" }
     var method: HTTPMethod { .get }
@@ -146,7 +144,7 @@ final class GetUserRequest: AppRequest, RestfulRequest, @unchecked Sendable {
 对于 `204 No Content` 等成功但无 body 的接口，请使用 `EmptyResponse` 作为响应类型：
 
 ```swift
-final class DeleteUserRequest: AppRequest, RestfulRequest, @unchecked Sendable {
+final class DeleteUserRequest: AppNetworkRequest, RestfulRequest, @unchecked Sendable {
     typealias Response = EmptyResponse
     var path: String { "/users/123" }
     var method: HTTPMethod { .delete }
@@ -164,7 +162,7 @@ struct UserProfile: Decodable, Sendable {
     let name: String
 }
 
-final class FetchUserProfileRequest: AppRequest, GraphQLRequest, @unchecked Sendable {
+final class FetchUserProfileRequest: AppNetworkRequest, GraphQLRequest, @unchecked Sendable {
     typealias Response = GraphQLResponse<UserProfile>
     var query: String { "query { user { id name } }" }
 }
