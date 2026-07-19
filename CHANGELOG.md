@@ -2,6 +2,12 @@
 
 All notable changes to NetworkingKit are documented in this file.
 
+## 2.3.8 - 2026-07-19
+
+### Changed
+
+- Reorganize documentation: keep the READMEs focused on installation and the first request, and add complete English and Simplified Chinese topic guides under `Docs/`.
+
 ## 2.3.7 - 2026-07-19
 
 ### Changed
