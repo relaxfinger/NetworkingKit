@@ -2,6 +2,13 @@
 
 All notable changes to NetworkingKit are documented in this file.
 
+## 2.3.7 - 2026-07-19
+
+### Changed
+
+- Expand the English and Chinese cache documentation with cache selection, policy behavior, HTTP cache semantics, backend coordination, offline behavior, lifecycle operations, and production scenarios.
+- Update the Demo to use a bounded persistent disk cache with an explicit fallback TTL.
+
 ## 2.3.6 - 2026-07-19
 
 ### Changed

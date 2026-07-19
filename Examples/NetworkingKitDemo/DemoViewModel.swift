@@ -59,6 +59,20 @@ private enum DemoConstants {
     static let requestTimeout: TimeInterval = 15
 }
 
+/// Defines the HTTP cache behavior used by the Demo client.
+///
+/// A disk cache makes successful GET responses available after the app relaunches.
+/// The server can override the fallback TTL with `Cache-Control` or `Expires`.
+private enum DemoCacheConfiguration {
+    static let maximumDiskSize = 20 * 1_024 * 1_024
+    static let fallbackTTL: TimeInterval = 5 * 60
+
+    static var directory: URL {
+        FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("NetworkingKitDemoHTTPResponses", isDirectory: true)
+    }
+}
+
 /// Demonstrates the actor-backed token store required by refreshing authentication.
 ///
 /// This public API does not require credentials, so the demo returns `nil` values.
@@ -87,7 +101,10 @@ final class AppNetworkClient: SharedNetworkClient, @unchecked Sendable {
     let session: URLSession
     let configuration = AppNetworkConfiguration.default
     private let refreshingAuthentication = RefreshingAuthInterceptor(provider: DemoTokenProvider.shared)
-    private let responseCache = InMemoryResponseCache(capacity: 50)
+    private let responseCache = DiskResponseCache(
+        directory: DemoCacheConfiguration.directory,
+        maximumSize: DemoCacheConfiguration.maximumDiskSize
+    )
     private let circuitBreakers = CircuitBreakerRegistry(failureThreshold: 3, resetTimeout: 20)
     private let networkMetrics = NetworkMetrics()
 
@@ -98,7 +115,8 @@ final class AppNetworkClient: SharedNetworkClient, @unchecked Sendable {
                 registry: circuitBreakers
             ),
             cache: responseCache,
-            policy: .returnCacheElseLoad
+            policy: .returnCacheElseLoad,
+            defaultTTL: DemoCacheConfiguration.fallbackTTL
         )
     }
 
