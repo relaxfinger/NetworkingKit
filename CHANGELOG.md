@@ -2,6 +2,13 @@
 
 All notable changes to NetworkingKit are documented in this file.
 
+## 2.4.7 - 2026-07-23
+
+### Fixed
+
+- Recognize and format multi-line triple-quoted GraphQL queries and multi-line variables in generated backend HTML documentation.
+- Add Demo and request-body test coverage for multi-line GraphQL queries.
+
 ## 2.4.6 - 2026-07-23
 
 ### Changed

@@ -308,6 +308,11 @@ final class NetworkingKitTests: XCTestCase {
     func testGraphQLResponseKeepsDataAndErrors() async throws {
         let client = makeClient { request in
             XCTAssertEqual(request.value(forHTTPHeaderField: "Content-Type"), "application/json")
+            XCTAssertNotNil(request.httpBody)
+            let body = request.httpBody!
+            let payload = try! JSONSerialization.jsonObject(with: body) as! [String: Any]
+            let query = payload["query"] as! String
+            XCTAssertTrue(query.contains("query User {\n  user {\n    id\n    name\n  }\n}"))
             let json = #"{"data":{"id":"42","name":"Ada"},"errors":[{"message":"partial result","path":["user",0]}]}"#
             return (.init(url: try! XCTUnwrap(request.url), statusCode: 200, httpVersion: nil, headerFields: nil)!, json.data(using: .utf8)!)
         }
@@ -486,7 +491,14 @@ private struct DeleteUserRequest: RestfulRequest {
 private struct UserGraphQLRequest: GraphQLRequest {
     typealias Response = GraphQLResponse<User>
     let client: TestClient
-    let query = "query User { user { id name } }"
+    let query = """
+    query User {
+      user {
+        id
+        name
+      }
+    }
+    """
 }
 
 private final class TestClient: NetworkClient, @unchecked Sendable {

@@ -160,7 +160,7 @@ enum BackendReferenceGenerator {
                 else if inherited.contains("GraphQLRequest") { kind = "GraphQL" }
                 else { continue }
                 guard let protocolName = protocolClients.keys.first(where: { inherited.contains($0) }), let server = protocolClients[protocolName] else { continue }
-                let body = capture(3, from: source, match: match)
+                let body = completeTypeBody(in: source, declaration: match) ?? capture(3, from: source, match: match)
                 let name = capture(1, from: source, match: match)
                 var params = property.matches(in: body, range: NSRange(body.startIndex..., in: body)).map { "\(capture(1, from: body, match: $0)): \(capture(2, from: body, match: $0).trimmingCharacters(in: .whitespaces))" }
                 let feature = feature(before: match.range.location, in: source)
@@ -188,6 +188,10 @@ enum BackendReferenceGenerator {
         let member = try! NSRegularExpression(pattern: #"(?m)^\s*(?:private\s+|public\s+|internal\s+)?(?:let|var)\s+(query|variables|operationName)\b(?:\s*:\s*[^=\{\n]+)?\s*(?:=\s*([^\n]+)|\{\s*(.*)\}\s*$)"#)
         var names = Set(existing.compactMap { $0.split(separator: ":", maxSplits: 1).first.map(String.init) })
         var parameters: [String] = []
+        let multilineQuery = try! NSRegularExpression(pattern: #"(?s)\bvar\s+query\s*:\s*String\s*\{\s*\"\"\"(.*?)\"\"\"\s*\}"#)
+        if let match = multilineQuery.firstMatch(in: body, range: NSRange(body.startIndex..., in: body)), names.insert("query").inserted {
+            parameters.append("query: \(capture(1, from: body, match: match).trimmingCharacters(in: .whitespacesAndNewlines))")
+        }
         for match in member.matches(in: body, range: NSRange(body.startIndex..., in: body)) {
             let name = capture(1, from: body, match: match)
             guard names.insert(name).inserted else { continue }
@@ -196,10 +200,48 @@ enum BackendReferenceGenerator {
                 ?? "<dynamic>"
             parameters.append("\(name): \(expression.trimmingCharacters(in: .whitespaces))")
         }
+        let multilineVariables = try! NSRegularExpression(pattern: #"(?s)\bvar\s+variables\s*:\s*[^\{\n]+\{\s*(\[.*?\])\s*\}"#)
+        if let match = multilineVariables.firstMatch(in: body, range: NSRange(body.startIndex..., in: body)), names.insert("variables").inserted {
+            parameters.append("variables: \(capture(1, from: body, match: match).trimmingCharacters(in: .whitespacesAndNewlines))")
+        }
         if !names.contains("query"), body.range(of: #"\b(?:let|var)\s+query\b"#, options: .regularExpression) != nil {
             parameters.append("query: <dynamic>")
         }
         return parameters
+    }
+
+    static func completeTypeBody(in source: String, declaration: NSTextCheckingResult) -> String? {
+        guard let declarationRange = Range(declaration.range, in: source), let openingBrace = source[declarationRange].firstIndex(of: "{") else { return nil }
+        var index = openingBrace
+        var depth = 0
+        var inString = false
+        var inMultilineString = false
+        var escaped = false
+
+        while index < source.endIndex {
+            if source[index...].hasPrefix("\"\"\"") {
+                inMultilineString.toggle()
+                index = source.index(index, offsetBy: 3)
+                continue
+            }
+            let character = source[index]
+            if inMultilineString {
+                index = source.index(after: index)
+                continue
+            }
+            if character == "\"" && !escaped { inString.toggle() }
+            if !inString {
+                if character == "{" { depth += 1 }
+                if character == "}" {
+                    depth -= 1
+                    if depth == 0 { return String(source[source.index(after: openingBrace)..<index]) }
+                }
+            }
+            escaped = character == "\\" && !escaped
+            if character != "\\" { escaped = false }
+            index = source.index(after: index)
+        }
+        return nil
     }
 
     static func parameterHTML(_ parameter: String) -> String {
