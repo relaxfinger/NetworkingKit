@@ -33,7 +33,7 @@ Or add the package manifest dependency:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/relaxfinger/NetworkingKit.git", from: "2.4.1")
+    .package(url: "https://github.com/relaxfinger/NetworkingKit.git", from: "2.4.2")
 ]
 ```
 

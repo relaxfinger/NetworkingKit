@@ -2,6 +2,12 @@
 
 All notable changes to NetworkingKit are documented in this file.
 
+## 2.4.2 - 2026-07-23
+
+### Fixed
+
+- Use the standard `main.swift` top-level entry point for `BackendReferenceGenerator`, allowing Xcode to compile the generator tool.
+
 ## 2.4.1 - 2026-07-23
 
 ### Fixed

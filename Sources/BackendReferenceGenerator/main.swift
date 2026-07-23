@@ -17,9 +17,8 @@ struct Endpoint {
     let source: String
 }
 
-@main
 enum BackendReferenceGenerator {
-    static func main() throws {
+    static func run() throws {
         let arguments = Array(CommandLine.arguments.dropFirst())
         guard let sourceDirectory = value(after: "--source-directory", in: arguments),
               let stamp = value(after: "--stamp", in: arguments) else {
@@ -268,3 +267,5 @@ enum BackendReferenceGenerator {
 }
 
 enum GeneratorError: Error { case invalidArguments }
+
+try BackendReferenceGenerator.run()
