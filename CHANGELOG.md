@@ -2,6 +2,13 @@
 
 All notable changes to NetworkingKit are documented in this file.
 
+## 2.4.5 - 2026-07-23
+
+### Changed
+
+- Generate Configuration tables from the effective client configuration: NetworkingKit defaults overridden by statically discoverable Client values.
+- Expand the backend API HTML documentation and rename user-facing catalog wording to documentation.
+
 ## 2.4.4 - 2026-07-23
 
 ### Changed

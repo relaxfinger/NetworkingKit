@@ -1,44 +1,108 @@
 # Backend API HTML reference
 
-NetworkingKit can scan an Xcode app's Swift source and create a browsable HTML reference of backend servers, configuration values, feature-grouped endpoints, parameters, requests, and source files.
+NetworkingKit can statically scan an Xcode app's Swift source and generate searchable HTML documentation for its backend integration. The documentation has an index page and one page per backend server.
 
-## Recommended: generate files in `Docs`
+Each server page contains:
 
-Use `BackendReferenceCommandPlugin` when the reference should live in the app project and be easy to open, commit, or attach to an artifact.
+- a **Configuration** table with final effective values: NetworkingKit defaults, overridden by the values provided by the Client where they are statically discoverable;
+- endpoints grouped by the closest `// MARK: - Feature name` declaration;
+- method, endpoint, request kind, stored-property parameters, request type, and source file;
+- a browser-side search field for servers, features, endpoints, parameters, request types, and source files.
 
-The plugin writes its entry page to:
+The package offers two Xcode plugins. Choose the output behaviour that matches the workflow.
 
-```text
-$SRCROOT/Docs/BackendAPIReference/index.html
+| Plugin | Run it when | Output | Best for |
+| --- | --- | --- | --- |
+| `BackendReferenceCommandPlugin` | Manually from Xcode | `$SRCROOT/Docs/BackendAPIReference/` | A permanent, shareable, commit-ready document |
+| `BackendReferencePlugin` | Automatically on every build | Xcode Derived Data plugin work directory | A build-time preview without changing the project |
+
+## Before you begin
+
+1. Add NetworkingKit to the App project with **File → Add Package Dependencies…**.
+2. Add the `NetworkingKit` library product to the target that contains the networking definitions.
+3. Resolve package versions and wait for Xcode to finish preparing packages.
+4. Ensure the App code declares concrete `NetworkClient` or `SharedNetworkClient` types and request types as described in [Recognition rules](#recognition-rules).
+
+The plugins scan Swift source; they do not run the App or call a backend.
+
+## Recommended: `BackendReferenceCommandPlugin`
+
+Use this plugin when `Docs/BackendAPIReference` should stay beside the `.xcodeproj` and can be opened, committed, copied to CI artifacts, or shared with the team.
+
+### Configure and run it in Xcode
+
+1. Open the App project in Xcode and confirm `NetworkingKit` appears under **Package Dependencies**.
+2. Choose **File → Packages → Generate Backend API Reference**.
+3. On the first run, inspect the prompt and choose **Allow Command to Change Files**. The permission is required because this command writes inside the project directory.
+4. Wait for the command to finish. It creates or refreshes:
+
+   ```text
+   $SRCROOT/Docs/BackendAPIReference/index.html
+   $SRCROOT/Docs/BackendAPIReference/<ServerName>.html
+   ```
+
+5. In Finder, open `Docs/BackendAPIReference/index.html`. You may add `Docs` to the Xcode project navigator as a folder reference if convenient; do not add the HTML files to the App target's resources.
+6. Run the same menu command whenever clients, request definitions, configuration, or Feature markers change.
+
+No Run Script phase, package checkout path, `--package-path`, or environment variable is needed. The Xcode Command Plugin receives the current project directory directly.
+
+### Commit or ignore the output
+
+`Docs/BackendAPIReference` is ordinary project output. Commit it when it is a reviewed team reference, or add the directory to `.gitignore` when it is only a local artifact. In either case, keep it out of the App bundle.
+
+## Automatic preview: `BackendReferencePlugin`
+
+Use the Build Tool Plugin when the document should be refreshed on every build but does not need to be saved in the repository.
+
+### Configure it on an App target
+
+1. In Xcode, select the App project in the navigator.
+2. Select the **App target**, then open **Build Phases**.
+3. Expand **Run Build Tool Plug-ins**.
+4. Click `+`, select **BackendReferencePlugin (NetworkingKit)**, then add it.
+5. Build the App. If Xcode asks to trust the plugin after a package update, review it and choose **Trust & Enable**.
+6. Open the **Report navigator** (⌘9), select the build, and expand **Generate backend API reference**. Its `BackendAPIReference/index.html` output is in that target's plugin work directory under Xcode Derived Data.
+
+SwiftPM Build Tool Plugins are sandboxed. They cannot write to `$SRCROOT`, so this plugin cannot create `Docs/BackendAPIReference` in the App project. That is expected behaviour, not a configuration error. Use the Command Plugin for a fixed project-root document.
+
+## Recognition rules
+
+The generator uses static source analysis. The following shape gives the most useful reference:
+
+```swift
+final class AccountAPIClient: SharedNetworkClient, @unchecked Sendable {
+    static let shared = AccountAPIClient()
+    let baseURL = URL(string: "https://api.example.com")!
+    let session = URLSession.shared
+    let configuration = NetworkConfiguration(timeoutInterval: 15)
+}
+
+protocol AccountRequest: NetworkRequest where Client == AccountAPIClient {}
+
+// MARK: - Profiles
+struct GetProfileRequest: AccountRequest, RestfulRequest {
+    let userID: String
+    var path: String { "/v1/profiles/\(userID)" }
+    var method: HTTPMethod { .get }
+}
 ```
 
-### Xcode steps
+- A `NetworkClient` or `SharedNetworkClient` `baseURL` identifies one server.
+- A request protocol constrained to one concrete client associates request types with that server.
+- `RestfulRequest` and `GraphQLRequest` declarations become endpoints.
+- The closest preceding `// MARK: - Feature name` groups the endpoints.
+- Stored request properties become parameters. The client `configuration` becomes the Configuration table.
 
-1. Add `NetworkingKit` through **File → Add Package Dependencies…**.
-2. Select **File → Packages → Generate Backend API Reference**.
-3. On first use, inspect the plugin and choose **Allow Command to Change Files**. This grants permission to write inside the project `Docs/` directory.
-4. Open `Docs/BackendAPIReference/index.html` in Finder or a browser.
-5. Run the same menu command whenever the app's networking definitions change.
+The scanner does not execute Swift. Dynamic URLs, HTTP methods, or complex expressions remain source expressions where possible, or appear as `<dynamic>`. Computed values cannot always be resolved to their final runtime value.
 
-No Run Script, checkout path, or environment variable is required. The Xcode command plugin receives the current project directory directly.
+## Troubleshooting
 
-## Build-time preview
+| Symptom | What to do |
+| --- | --- |
+| The command is missing from **File → Packages** | Resolve package versions, confirm that the project depends on NetworkingKit 2.4.3 or later, then reopen the project. |
+| Xcode says the plugin is disabled or untrusted | Run the command/build again and choose **Trust & Enable** or **Allow Command to Change Files** in the Xcode prompt. |
+| The Build Tool Plugin does not create a `Docs` directory | Expected: its sandbox only permits Derived Data output. Run `BackendReferenceCommandPlugin` instead. |
+| A request or Feature is absent | Check the concrete-client protocol constraint, `RestfulRequest`/`GraphQLRequest` conformance, and that the `// MARK:` line precedes the request declaration. |
+| Values show as `<dynamic>` | Use a literal or statically resolvable value when possible; runtime code is intentionally not executed. |
 
-`BackendReferencePlugin` is a Build Tool Plugin for automatically generating the same reference during every build:
-
-1. Select the App target and open **Build Phases**.
-2. In **Run Build Tool Plug-ins**, click `+` and choose `BackendReferencePlugin`.
-3. Build the app.
-4. Open the plugin output in the Xcode Report navigator; its entry page is `BackendAPIReference/index.html` in Derived Data.
-
-Build Tool Plugins are sandboxed and cannot write into the project root. Use the Command Plugin when the HTML must be saved in `Docs/`.
-
-## Discovery rules
-
-- A `NetworkClient` or `SharedNetworkClient` `baseURL` identifies a backend server.
-- An app request protocol constrained to a concrete client associates requests with that server.
-- `RestfulRequest` and `GraphQLRequest` declarations are endpoints.
-- The nearest preceding `// MARK: - Feature name` groups endpoints into features.
-- Stored request properties are parameters; configuration values are displayed in a configuration table.
-
-The scanner does not execute Swift code. Dynamic expressions remain source expressions or are shown as `<dynamic>`.
+For non-Xcode automation, invoke `BackendReferenceGenerator` from a checked-out package with `--source-directory`, `--output-directory`, and `--stamp`. This is a fallback for CI; the Command Plugin is the normal Xcode workflow.
