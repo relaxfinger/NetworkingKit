@@ -33,7 +33,7 @@ Or add the package manifest dependency:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/relaxfinger/NetworkingKit.git", from: "2.4.4")
+    .package(url: "https://github.com/relaxfinger/NetworkingKit.git", from: "2.4.5")
 ]
 ```
 
@@ -124,6 +124,15 @@ let errors = response.errors
 
 For a Combine screen, call `executePublisher()` on the same request.
 
+## Backend API HTML reference
+
+NetworkingKit can scan the App's Swift source and generate searchable HTML documentation. It contains one page per backend server, a configuration table, Feature-grouped endpoint tables, parameters, request types, and source files.
+
+- **`BackendReferenceCommandPlugin` (recommended):** run **File → Packages → Generate Backend API Reference** in Xcode. It writes a shareable, commit-ready entry page to `Docs/BackendAPIReference/index.html` at the App project root.
+- **`BackendReferencePlugin`:** add it under the App target's **Build Phases → Run Build Tool Plug-ins**. It refreshes the same reference on every build, but SwiftPM writes it only to Xcode Derived Data.
+
+Use the Command Plugin when the HTML should remain in the project; use the Build Tool Plugin for an automatic, build-only preview. See [Backend API reference](Docs/BackendReferencePlugin.md) for setup, permissions, output locations, recognition rules, and troubleshooting.
+
 ## Documentation
 
 The README is intentionally the shortest path to a first request. Use the detailed, bilingual documentation when building a production client:
@@ -139,7 +148,7 @@ The README is intentionally the shortest path to a first request. Use the detail
 | Logs, tracing, and metrics | [Observability](Docs/Observability.md) | [可观测性](Docs/Observability.zh-Hans.md) |
 | Stable errors and localized UI messages | [Errors](Docs/Errors.md) | [错误与本地化](Docs/Errors.zh-Hans.md) |
 | Certificate and public-key pinning | [Security](Docs/Security.md) | [传输安全](Docs/Security.zh-Hans.md) |
-| Backend API HTML reference and Xcode plugins | [Backend API reference](Docs/BackendReferencePlugin.md) | [后端 API HTML 索引](Docs/BackendReferencePlugin.zh-Hans.md) |
+| Backend API HTML reference and Xcode plugins | [Backend API reference](Docs/BackendReferencePlugin.md) | [后端 API HTML 文档](Docs/BackendReferencePlugin.zh-Hans.md) |
 
 ## Demo
 

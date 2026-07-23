@@ -3,7 +3,7 @@ import Foundation
 struct Server {
     let name: String
     let baseURL: String
-    let configuration: String
+    let configuration: [(String, String)]
 }
 
 struct Endpoint {
@@ -82,6 +82,8 @@ enum BackendReferenceGenerator {
 
     static func parseServers(_ documents: [(URL, String)]) -> [Server] {
         var servers: [Server] = []
+        let referenceDocuments = documents + networkingKitDocuments()
+        let defaults = defaultConfigurationItems(in: referenceDocuments)
         let declaration = try! NSRegularExpression(pattern: #"(?s)(?:final\s+)?(?:class|struct)\s+(\w+)\s*:\s*[^\{]*(?:NetworkClient|SharedNetworkClient)[^\{]*\{(.*?)\n\}"#)
         let baseURL = try! NSRegularExpression(pattern: #"baseURL\s*=\s*URL\s*\(\s*string:\s*\"([^\"]+)\"\s*\)\s*!"#)
         let configuration = try! NSRegularExpression(pattern: #"configuration\s*=\s*([^\n]+)"#)
@@ -91,14 +93,20 @@ enum BackendReferenceGenerator {
                 guard let urlMatch = baseURL.firstMatch(in: body, range: NSRange(body.startIndex..., in: body)) else { continue }
                 let name = capture(1, from: source, match: match)
                 let config = configuration.firstMatch(in: body, range: NSRange(body.startIndex..., in: body)).map { capture(1, from: body, match: $0).trimmingCharacters(in: .whitespaces) } ?? "NetworkConfiguration.default"
-                let resolvedConfiguration = resolveConfiguration(config, in: documents)
-                servers.append(Server(name: name, baseURL: capture(1, from: body, match: urlMatch), configuration: resolveStaticReferences(in: resolvedConfiguration, documents: documents)))
+                let resolvedConfiguration = resolveConfiguration(config, in: referenceDocuments)
+                let overrides = configurationItems(from: resolveStaticReferences(in: resolvedConfiguration, documents: referenceDocuments))
+                servers.append(Server(
+                    name: name,
+                    baseURL: capture(1, from: body, match: urlMatch),
+                    configuration: mergedConfiguration(defaults: defaults, overrides: overrides)
+                ))
             }
         }
         return servers
     }
 
     static func resolveConfiguration(_ reference: String, in documents: [(URL, String)]) -> String {
+        if reference == "NetworkConfiguration.default" { return "NetworkConfiguration()" }
         guard let typeName = reference.split(separator: ".").first, reference.hasSuffix(".default") else { return reference }
         let declaration = try! NSRegularExpression(pattern: #"(?s)(?:enum|struct|class)\s+\#(typeName)\s*\{(.*?)\n\}"#)
         let defaultValue = try! NSRegularExpression(pattern: #"(?s)static\s+let\s+`?default`?\s*=\s*(NetworkConfiguration\(.*?\n\s*\))"#)
@@ -110,6 +118,18 @@ enum BackendReferenceGenerator {
             }
         }
         return reference
+    }
+
+    static func networkingKitDocuments() -> [(URL, String)] {
+        let sourceURL = URL(fileURLWithPath: #filePath)
+        let packageRoot = sourceURL
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        return (try? swiftFiles(in: packageRoot).compactMap { url in
+            guard url.path.contains("/Sources/NetworkingKit/") else { return nil }
+            return try? (url, String(contentsOf: url, encoding: .utf8))
+        }) ?? []
     }
 
     static func parseProtocolClients(_ documents: [(URL, String)]) -> [String: String] {
@@ -173,7 +193,7 @@ enum BackendReferenceGenerator {
             let count = endpoints.filter { $0.server == server.name }.count
             return "<a class=\"server-card\" data-search=\"\(escape(server.name + " " + server.baseURL))\" href=\"\(escape(filename))\"><span class=\"card-kicker\">BACKEND SERVER</span><h2>\(escape(server.name))</h2><code>\(escape(server.baseURL))</code><span class=\"count-badge\">\(count) 个端点</span></a>"
         }.joined(separator: "\n")
-        let body = "<header class=\"hero\"><div class=\"page-width\"><p class=\"eyebrow\">NETWORKINGKIT</p><h1>后端 API 目录</h1><p class=\"lede\">由 App 源码自动生成 · 共 \(servers.count) 个后端服务器，\(endpoints.count) 个端点</p></div></header><main class=\"page-width\"><input class=\"search\" type=\"search\" placeholder=\"筛选服务器、URL 或端点…\" aria-label=\"筛选服务器\" data-filter><div class=\"chip-row\"><span class=\"chip\">\(servers.count) 个服务器</span><span class=\"chip\">\(endpoints.count) 个端点</span></div><section class=\"card-grid\" data-filter-container>\(cards)</section><p class=\"empty\" hidden>没有匹配的服务器。</p></main>"
+        let body = "<header class=\"hero\"><div class=\"page-width\"><p class=\"eyebrow\">NETWORKINGKIT</p><h1>后端 API 文档</h1><p class=\"lede\">由 App 源码自动生成 · 共 \(servers.count) 个后端服务器，\(endpoints.count) 个端点</p></div></header><main class=\"page-width\"><input class=\"search\" type=\"search\" placeholder=\"筛选服务器、URL 或端点…\" aria-label=\"筛选服务器\" data-filter><div class=\"chip-row\"><span class=\"chip\">\(servers.count) 个服务器</span><span class=\"chip\">\(endpoints.count) 个端点</span></div><section class=\"card-grid\" data-filter-container>\(cards)</section><p class=\"empty\" hidden>没有匹配的服务器。</p></main>"
         try html(title: "Backend API Reference", body: body).write(to: directory.appendingPathComponent("index.html"), atomically: true, encoding: .utf8)
     }
 
@@ -186,7 +206,7 @@ enum BackendReferenceGenerator {
             let search = endpoints.map { $0.feature + " " + $0.name + " " + $0.path + " " + $0.parameters.joined(separator: " ") }.joined(separator: " ")
             return "<section class=\"feature-card\" data-search=\"\(escape(search))\"><div class=\"feature-heading\"><div><p class=\"card-kicker\">FEATURE</p><h2>\(escape(feature))</h2></div><span class=\"count-badge\">\(endpoints.count) 个端点</span></div><div class=\"table-wrap\"><table><thead><tr><th>Method</th><th>Endpoint</th><th>Kind</th><th>Parameters</th><th>Request</th><th>Source</th></tr></thead><tbody>\(rows)</tbody></table></div></section>"
         }.joined(separator: "\n")
-        let configurationRows = configurationItems(from: server.configuration).map { key, value in
+        let configurationRows = server.configuration.map { key, value in
             "<tr><td>\(escape(key))</td><td><code>\(escape(value))</code></td></tr>"
         }.joined()
         let configurationTable = "<section class=\"feature-card configuration\"><div class=\"feature-heading\"><div><p class=\"card-kicker\">CLIENT CONFIGURATION</p><h2>配置</h2></div></div><div class=\"table-wrap\"><table><thead><tr><th>配置项</th><th>值</th></tr></thead><tbody>\(configurationRows)</tbody></table></div></section>"
@@ -196,13 +216,21 @@ enum BackendReferenceGenerator {
 
     static func configurationItems(from configuration: String) -> [(String, String)] {
         guard configuration.hasPrefix("NetworkConfiguration("), configuration.hasSuffix(")") else {
-            return [("Configuration", configuration)]
+            return configuration == "NetworkConfiguration.default" ? [] : [("Configuration", configuration)]
         }
         let inner = String(configuration.dropFirst("NetworkConfiguration(".count).dropLast())
+        return topLevelItems(in: inner).map { item in
+            let pair = item.split(separator: ":", maxSplits: 1, omittingEmptySubsequences: false)
+            guard pair.count == 2 else { return (item.trimmingCharacters(in: .whitespaces), "") }
+            return (pair[0].trimmingCharacters(in: .whitespaces), pair[1].trimmingCharacters(in: .whitespaces))
+        }
+    }
+
+    static func topLevelItems(in value: String) -> [String] {
         var items: [String] = []
         var current = ""
         var depth = 0
-        for character in inner {
+        for character in value {
             switch character {
             case "(", "[", "{": depth += 1
             case ")", "]", "}": depth -= 1
@@ -215,23 +243,55 @@ enum BackendReferenceGenerator {
             current.append(character)
         }
         if !current.isEmpty { items.append(current) }
-        return items.map { item in
-            let pair = item.split(separator: ":", maxSplits: 1, omittingEmptySubsequences: false)
-            guard pair.count == 2 else { return (item.trimmingCharacters(in: .whitespaces), "") }
-            return (pair[0].trimmingCharacters(in: .whitespaces), pair[1].trimmingCharacters(in: .whitespaces))
+        return items
+    }
+
+    static func defaultConfigurationItems(in documents: [(URL, String)]) -> [(String, String)] {
+        let initializer = try! NSRegularExpression(pattern: #"(?s)public\s+init\s*\((.*?)\)\s*\{"#)
+        for (_, source) in documents where source.contains("struct NetworkConfiguration") {
+            guard let match = initializer.firstMatch(in: source, range: NSRange(source.startIndex..., in: source)) else { continue }
+            let parameters = capture(1, from: source, match: match)
+            let defaults = topLevelItems(in: parameters).compactMap { parameter -> (String, String)? in
+                let parts = parameter.split(separator: "=", maxSplits: 1, omittingEmptySubsequences: false)
+                guard parts.count == 2 else { return nil }
+                let name = parts[0].split(separator: ":", maxSplits: 1).first?.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard let name, !name.isEmpty else { return nil }
+                return (name, parts[1].trimmingCharacters(in: .whitespacesAndNewlines))
+            }
+            return defaults.map { ($0.0, resolveStaticReferences(in: $0.1, documents: documents)) }
         }
+        return []
+    }
+
+    static func mergedConfiguration(defaults: [(String, String)], overrides: [(String, String)]) -> [(String, String)] {
+        var effective = defaults
+        for (key, value) in overrides {
+            if let index = effective.firstIndex(where: { $0.0 == key }) {
+                effective[index] = (key, value)
+            } else {
+                effective.append((key, value))
+            }
+        }
+        return effective
     }
 
     static func resolveStaticReferences(in value: String, documents: [(URL, String)]) -> String {
         // Values in NetworkConfiguration often use app constants, for example
         // `DemoConstants.requestTimeout`. Resolve those references without
         // evaluating arbitrary Swift code.
+        let qualifiedReference = try! NSRegularExpression(pattern: #"\b(\w+)\.(\w+)\.(\w+)\b"#)
         let reference = try! NSRegularExpression(pattern: #"\b(\w+)\.(\w+)\b"#)
         var resolved = value
         for _ in 0..<4 {
-            let matches = reference.matches(in: resolved, range: NSRange(resolved.startIndex..., in: resolved))
             var replacements: [(NSRange, String)] = []
-            for match in matches {
+            for match in qualifiedReference.matches(in: resolved, range: NSRange(resolved.startIndex..., in: resolved)) {
+                let type = capture(1, from: resolved, match: match)
+                let member = capture(3, from: resolved, match: match)
+                if let constant = staticConstant(named: member, in: type, documents: documents) {
+                    replacements.append((match.range, constant))
+                }
+            }
+            for match in reference.matches(in: resolved, range: NSRange(resolved.startIndex..., in: resolved)) where !replacements.contains(where: { NSIntersectionRange($0.0, match.range).length > 0 }) {
                 let type = capture(1, from: resolved, match: match)
                 let member = capture(2, from: resolved, match: match)
                 if let constant = staticConstant(named: member, in: type, documents: documents) {
@@ -253,7 +313,7 @@ enum BackendReferenceGenerator {
             options: [.anchorsMatchLines]
         )
         let constant = try! NSRegularExpression(
-            pattern: #"(?m)^\s*static\s+let\s+\#(member)(?:\s*:\s*[^=\n]+)?\s*=\s*([^\n]+)"#
+            pattern: #"(?m)^\s*(?:public\s+)?static\s+let\s+\#(member)(?:\s*:\s*[^=\n]+)?\s*=\s*([^\n]+)"#
         )
         for (_, source) in documents {
             guard let typeMatch = declaration.firstMatch(in: source, range: NSRange(source.startIndex..., in: source)) else { continue }
