@@ -16,6 +16,8 @@ The package offers two Xcode plugins. Choose the output behaviour that matches t
 | `BackendReferenceCommandPlugin` | Manually from Xcode | `$SRCROOT/Docs/BackendAPIReference/` | A permanent, shareable, commit-ready document |
 | `BackendReferencePlugin` | Automatically on every build | Xcode Derived Data plugin work directory | A build-time preview without changing the project |
 
+Generated HTML defaults to English. Use the **EN / 中文** control in the page header to switch the document UI to Simplified Chinese; the selection is remembered in that browser.
+
 ## Before you begin
 
 1. Add NetworkingKit to the App project with **File → Add Package Dependencies…**.

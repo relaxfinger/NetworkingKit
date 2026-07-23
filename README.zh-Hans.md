@@ -33,7 +33,7 @@ https://github.com/relaxfinger/NetworkingKit.git
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/relaxfinger/NetworkingKit.git", from: "2.4.7")
+    .package(url: "https://github.com/relaxfinger/NetworkingKit.git", from: "2.4.8")
 ]
 ```
 
