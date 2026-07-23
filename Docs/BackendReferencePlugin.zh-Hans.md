@@ -89,7 +89,7 @@ struct GetProfileRequest: AccountRequest, RestfulRequest {
 
 - `NetworkClient` / `SharedNetworkClient` 的 `baseURL` 表示一个后端服务器。
 - 绑定到某个具体 Client 的请求协议，会将 Request 关联到对应服务器。
-- `RestfulRequest` 和 `GraphQLRequest` 声明会被识别为端点。
+- `RestfulRequest` 和 `GraphQLRequest` 声明会被识别为端点。GraphQL 端点固定为 `/graphql` 和 `POST`；能够静态识别的 `query`、`variables` 与 `operationName` 会展示在参数列中。
 - 请求声明上方最近的 `// MARK: - Feature 名称` 用于 Feature 分组。
 - Request 的存储属性会列为参数；Client 的 `configuration` 会生成配置表。
 

@@ -162,13 +162,14 @@ enum BackendReferenceGenerator {
                 guard let protocolName = protocolClients.keys.first(where: { inherited.contains($0) }), let server = protocolClients[protocolName] else { continue }
                 let body = capture(3, from: source, match: match)
                 let name = capture(1, from: source, match: match)
-                let params = property.matches(in: body, range: NSRange(body.startIndex..., in: body)).map { "\(capture(1, from: body, match: $0)): \(capture(2, from: body, match: $0).trimmingCharacters(in: .whitespaces))" }
+                var params = property.matches(in: body, range: NSRange(body.startIndex..., in: body)).map { "\(capture(1, from: body, match: $0)): \(capture(2, from: body, match: $0).trimmingCharacters(in: .whitespaces))" }
                 let feature = feature(before: match.range.location, in: source)
                 let relativePath: String
                 let httpMethod: String
                 if kind == "GraphQL" {
                     relativePath = "/graphql"
                     httpMethod = "POST"
+                    params.append(contentsOf: graphQLParameters(in: body, excluding: params))
                 } else {
                     relativePath = path.firstMatch(in: body, range: NSRange(body.startIndex..., in: body)).map { capture(1, from: body, match: $0).trimmingCharacters(in: .whitespaces) } ?? "<dynamic>"
                     httpMethod = method.firstMatch(in: body, range: NSRange(body.startIndex..., in: body)).map { capture(1, from: body, match: $0).uppercased() } ?? "<dynamic>"
@@ -178,6 +179,143 @@ enum BackendReferenceGenerator {
             }
         }
         return endpoints
+    }
+
+    static func graphQLParameters(in body: String, excluding existing: [String]) -> [String] {
+        // GraphQLRequest serializes query, variables, and operationName into its JSON body.
+        // Capture both stored and single-line computed declarations; multi-line expressions
+        // remain explicitly dynamic rather than pretending to know their runtime value.
+        let member = try! NSRegularExpression(pattern: #"(?m)^\s*(?:private\s+|public\s+|internal\s+)?(?:let|var)\s+(query|variables|operationName)\b(?:\s*:\s*[^=\{\n]+)?\s*(?:=\s*([^\n]+)|\{\s*(.*)\}\s*$)"#)
+        var names = Set(existing.compactMap { $0.split(separator: ":", maxSplits: 1).first.map(String.init) })
+        var parameters: [String] = []
+        for match in member.matches(in: body, range: NSRange(body.startIndex..., in: body)) {
+            let name = capture(1, from: body, match: match)
+            guard names.insert(name).inserted else { continue }
+            let expression = captureOptional(2, from: body, match: match)
+                ?? captureOptional(3, from: body, match: match)
+                ?? "<dynamic>"
+            parameters.append("\(name): \(expression.trimmingCharacters(in: .whitespaces))")
+        }
+        if !names.contains("query"), body.range(of: #"\b(?:let|var)\s+query\b"#, options: .regularExpression) != nil {
+            parameters.append("query: <dynamic>")
+        }
+        return parameters
+    }
+
+    static func parameterHTML(_ parameter: String) -> String {
+        if parameter.hasPrefix("query: ") {
+            let source = String(parameter.dropFirst("query: ".count))
+            return graphQLCodeBlock(name: "query", source: formatGraphQLQuery(source))
+        }
+        if parameter.hasPrefix("variables: ") {
+            let source = String(parameter.dropFirst("variables: ".count))
+            return graphQLCodeBlock(name: "variables", source: formatGraphQLVariables(source))
+        }
+        return escape(parameter)
+    }
+
+    static func graphQLCodeBlock(name: String, source: String) -> String {
+        "<div class=\"graphql-input\"><span>\(escape(name))</span><pre><code>\(escape(source))</code></pre></div>"
+    }
+
+    static func formatGraphQLQuery(_ source: String) -> String {
+        var query = source.trimmingCharacters(in: .whitespacesAndNewlines)
+        if query.hasPrefix("\"") && query.hasSuffix("\"") && query.count >= 2 {
+            query.removeFirst()
+            query.removeLast()
+        }
+        query = query.replacingOccurrences(of: #"\n"#, with: "\n").replacingOccurrences(of: #"\""#, with: "\"")
+
+        var lines: [String] = []
+        var current = ""
+        var indentation = 0
+        var parenthesisDepth = 0
+        func appendCurrent() {
+            let trimmed = current.trimmingCharacters(in: .whitespaces)
+            guard !trimmed.isEmpty else { return }
+            lines.append(String(repeating: "  ", count: indentation) + trimmed)
+            current = ""
+        }
+
+        for character in query {
+            switch character {
+            case "(":
+                parenthesisDepth += 1
+                current.append(character)
+            case ")":
+                parenthesisDepth = max(0, parenthesisDepth - 1)
+                current.append(character)
+            case "{":
+                let trimmed = current.trimmingCharacters(in: .whitespaces)
+                lines.append(String(repeating: "  ", count: indentation) + (trimmed.isEmpty ? "{" : trimmed + " {"))
+                current = ""
+                indentation += 1
+            case "}":
+                appendCurrent()
+                indentation = max(0, indentation - 1)
+                lines.append(String(repeating: "  ", count: indentation) + "}")
+            case " ", "\t", "\n":
+                if indentation > 0 && parenthesisDepth == 0 {
+                    appendCurrent()
+                } else if !current.hasSuffix(" ") {
+                    current.append(" ")
+                }
+            default:
+                current.append(character)
+            }
+        }
+        appendCurrent()
+        var normalized: [String] = []
+        for line in lines {
+            if line.trimmingCharacters(in: .whitespaces) == "{", !normalized.isEmpty {
+                normalized[normalized.count - 1] += " {"
+            } else {
+                normalized.append(line)
+            }
+        }
+        return normalized.joined(separator: "\n")
+    }
+
+    static func formatGraphQLVariables(_ source: String) -> String {
+        var lines: [String] = []
+        var current = ""
+        var indentation = 0
+        var parenthesisDepth = 0
+        func appendCurrent() {
+            let trimmed = current.trimmingCharacters(in: .whitespaces)
+            guard !trimmed.isEmpty else { return }
+            lines.append(String(repeating: "  ", count: indentation) + trimmed)
+            current = ""
+        }
+
+        for character in source.trimmingCharacters(in: .whitespacesAndNewlines) {
+            switch character {
+            case "(":
+                parenthesisDepth += 1
+                current.append(character)
+            case ")":
+                parenthesisDepth = max(0, parenthesisDepth - 1)
+                current.append(character)
+            case "[", "{":
+                let trimmed = current.trimmingCharacters(in: .whitespaces)
+                lines.append(String(repeating: "  ", count: indentation) + trimmed + String(character))
+                current = ""
+                indentation += 1
+            case "]", "}":
+                appendCurrent()
+                indentation = max(0, indentation - 1)
+                lines.append(String(repeating: "  ", count: indentation) + String(character))
+            case "," where parenthesisDepth == 0:
+                current.append(character)
+                appendCurrent()
+            case " ", "\t", "\n":
+                if !current.hasSuffix(" ") { current.append(" ") }
+            default:
+                current.append(character)
+            }
+        }
+        appendCurrent()
+        return lines.joined(separator: "\n")
     }
 
     static func feature(before offset: Int, in source: String) -> String {
@@ -200,7 +338,7 @@ enum BackendReferenceGenerator {
     static func writeServerPage(_ server: Server, endpoints: [Endpoint], to directory: URL) throws {
         let groups = Dictionary(grouping: endpoints, by: \.feature).sorted { $0.key < $1.key }.map { feature, endpoints in
             let rows = endpoints.sorted { $0.name < $1.name }.map { endpoint in
-                let parameters = endpoint.parameters.isEmpty ? "—" : endpoint.parameters.map(escape).joined(separator: "<br>")
+                let parameters = endpoint.parameters.isEmpty ? "—" : endpoint.parameters.map(parameterHTML).joined(separator: "<br>")
                 return "<tr data-search=\"\(escape(endpoint.name + " " + endpoint.path + " " + endpoint.parameters.joined(separator: " ") + " " + endpoint.source))\"><td><span class=\"method method-\(escape(endpoint.method.lowercased()))\">\(escape(endpoint.method))</span></td><td><code>\(escape(endpoint.path))</code></td><td>\(escape(endpoint.requestKind))</td><td>\(parameters)</td><td><code>\(escape(endpoint.name))</code></td><td><code>\(escape(endpoint.source))</code></td></tr>"
             }.joined()
             let search = endpoints.map { $0.feature + " " + $0.name + " " + $0.path + " " + $0.parameters.joined(separator: " ") }.joined(separator: " ")
@@ -327,11 +465,16 @@ enum BackendReferenceGenerator {
 
     static func pageName(for server: Server) -> String { server.name + ".html" }
     static func capture(_ index: Int, from string: String, match: NSTextCheckingResult) -> String { String(string[Range(match.range(at: index), in: string)!]) }
+    static func captureOptional(_ index: Int, from string: String, match: NSTextCheckingResult) -> String? {
+        let range = match.range(at: index)
+        guard range.location != NSNotFound, let swiftRange = Range(range, in: string) else { return nil }
+        return String(string[swiftRange])
+    }
     static func escape(_ value: String) -> String { value.replacingOccurrences(of: "&", with: "&amp;").replacingOccurrences(of: "<", with: "&lt;").replacingOccurrences(of: ">", with: "&gt;").replacingOccurrences(of: "\"", with: "&quot;") }
     static func html(title: String, body: String) -> String { """
     <!doctype html><html lang="zh-Hans"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>\(escape(title))</title><style>
     :root{color-scheme:dark;--bg:#101112;--surface:#171819;--line:#343638;--text:#f7f7f5;--muted:#96999d;--blue:#8cbfff;--blue-bg:#172944}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:16px -apple-system,BlinkMacSystemFont,"SF Pro Display","PingFang SC",sans-serif}.page-width{max-width:1788px;margin:auto;padding-left:clamp(24px,5.4vw,104px);padding-right:clamp(24px,5.4vw,104px)}.hero{background:#0e1822;border-bottom:1px solid var(--line);padding:88px 0 68px}.hero.compact{padding:46px 0}.eyebrow,.card-kicker{margin:0 0 12px;color:var(--muted);font-size:13px;font-weight:750;letter-spacing:.12em}.hero h1{margin:0;font-size:clamp(44px,5vw,78px);line-height:1.05;letter-spacing:-.055em}.lede{margin:24px 0 0;color:var(--muted);font-size:21px;font-weight:600}.back{display:inline-block;margin-bottom:26px;color:var(--blue);font-weight:700;text-decoration:none}main{padding-top:62px;padding-bottom:100px}.search{width:100%;border:3px solid var(--blue);outline:0;border-radius:17px;background:#141516;color:var(--text);padding:20px 22px;font:600 21px inherit;box-shadow:0 0 0 1px #29486f}.search::placeholder{color:#6f7378}.chip-row{display:flex;gap:12px;margin:34px 0 42px}.chip,.count-badge{display:inline-flex;align-items:center;border-radius:999px;background:var(--blue-bg);color:#dceaff;font-weight:750}.chip{padding:10px 15px;border:1px solid #29486f}.count-badge{padding:9px 13px;font-size:14px;white-space:nowrap}.card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:22px}.server-card,.feature-card{border:1px solid var(--line);border-radius:22px;background:var(--surface);box-shadow:0 15px 42px #0000002b}.server-card{display:block;min-height:220px;padding:31px;color:var(--text);text-decoration:none;transition:transform .15s,border-color .15s}.server-card:hover{transform:translateY(-3px);border-color:var(--blue)}.server-card h2,.feature-heading h2{margin:0;font-size:30px;letter-spacing:-.035em}.server-card code{display:block;margin-top:18px;color:#c8d6e9;overflow-wrap:anywhere}.server-card .count-badge{margin-top:26px}.feature-list{display:grid;gap:28px;margin-top:34px}.feature-card{margin-top:34px;padding:30px}.feature-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;margin-bottom:30px}.table-wrap{overflow:auto}table{width:100%;min-width:820px;border-collapse:collapse;text-align:left}th{color:var(--muted);font-size:14px;letter-spacing:.07em;text-transform:uppercase}th,td{padding:17px;border-bottom:1px solid var(--line);vertical-align:top}tbody tr:last-child td{border-bottom:0}code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.92em;overflow-wrap:anywhere}.method{display:inline-block;border-radius:7px;padding:6px 8px;background:#24364f;color:#cfe4ff;font:750 12px ui-monospace,SFMono-Regular,Menlo}.method-post{background:#263f32;color:#b6e5c6}.method-delete{background:#482c31;color:#ffc5cb}.empty{margin:40px 0;color:var(--muted);text-align:center}@media(max-width:700px){.hero{padding:58px 0 48px}.lede{font-size:17px}.feature-card{padding:21px}.feature-heading{display:block}.feature-heading .count-badge{margin-top:16px}.search{font-size:17px;padding:17px}}
-    </style></head><body>\(body)<script>const input=document.querySelector('[data-filter]');if(input){const items=[...document.querySelectorAll('[data-search]')],empty=document.querySelector('.empty[hidden]');input.addEventListener('input',()=>{const q=input.value.trim().toLowerCase();let visible=0;items.forEach(item=>{const show=!q||item.dataset.search.toLowerCase().includes(q);item.hidden=!show;if(show)visible++});if(empty)empty.hidden=visible>0})}</script></body></html>
+    </style><style>.graphql-input{display:grid;gap:7px}.graphql-input>span{color:var(--muted);font:750 12px ui-monospace,SFMono-Regular,Menlo}.graphql-input pre{max-width:560px;margin:0;padding:13px 15px;overflow:auto;border:1px solid #29486f;border-radius:10px;background:#101924;white-space:pre}.graphql-input pre code{color:#dceaff;font-size:13px;line-height:1.55}</style></head><body>\(body)<script>const input=document.querySelector('[data-filter]');if(input){const items=[...document.querySelectorAll('[data-search]')],empty=document.querySelector('.empty[hidden]');input.addEventListener('input',()=>{const q=input.value.trim().toLowerCase();let visible=0;items.forEach(item=>{const show=!q||item.dataset.search.toLowerCase().includes(q);item.hidden=!show;if(show)visible++});if(empty)empty.hidden=visible>0})}</script></body></html>
     """ }
 }
 
