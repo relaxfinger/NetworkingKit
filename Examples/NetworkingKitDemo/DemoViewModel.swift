@@ -245,6 +245,18 @@ struct FetchCharacterProfileRequest: AppNetworkRequest, GraphQLRequest {
     private let id: String
 
     init(id: String) { self.id = id }
-    var query: String { "query Character($id: ID!) { character(id: $id) { name species status } }" }
-    var variables: [String: AnyEncodable]? { ["id": AnyEncodable(id)] }
+    var query: String {
+        """
+        query Character($id: ID!) {
+          character(id: $id) {
+            name
+            species
+            status
+          }
+        }
+        """
+    }
+    var variables: [String: AnyEncodable]? {
+        ["id": AnyEncodable(id)]
+    }
 }
