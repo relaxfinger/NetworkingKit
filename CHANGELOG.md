@@ -2,6 +2,13 @@
 
 All notable changes to NetworkingKit are documented in this file.
 
+## 2.4.6 - 2026-07-23
+
+### Changed
+
+- Show GraphQL `/graphql` and `POST` metadata together with statically discoverable `query`, `variables`, and `operationName` parameters in generated backend HTML documentation.
+- Render GraphQL query and variables as formatted, indented code blocks.
+
 ## 2.4.5 - 2026-07-23
 
 ### Changed

@@ -89,7 +89,7 @@ struct GetProfileRequest: AccountRequest, RestfulRequest {
 
 - A `NetworkClient` or `SharedNetworkClient` `baseURL` identifies one server.
 - A request protocol constrained to one concrete client associates request types with that server.
-- `RestfulRequest` and `GraphQLRequest` declarations become endpoints.
+- `RestfulRequest` and `GraphQLRequest` declarations become endpoints. GraphQL endpoints use `/graphql` and `POST`; their `query`, `variables`, and `operationName` declarations are shown as request parameters when statically available.
 - The closest preceding `// MARK: - Feature name` groups the endpoints.
 - Stored request properties become parameters. The client `configuration` becomes the Configuration table.
 
