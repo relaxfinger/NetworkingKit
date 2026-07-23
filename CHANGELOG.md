@@ -2,6 +2,12 @@
 
 All notable changes to NetworkingKit are documented in this file.
 
+## 2.4.4 - 2026-07-23
+
+### Changed
+
+- Refresh the generated backend API reference with a dark catalog UI, searchable server and endpoint cards, feature counts, and responsive endpoint tables.
+
 ## 2.4.3 - 2026-07-23
 
 ### Added
