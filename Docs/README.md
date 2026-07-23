@@ -14,6 +14,7 @@ These guides are the reference for production use. Read them in the order below 
 | [Observability](Observability.md) | Add request IDs, OSLog, OpenTelemetry, or aggregate network metrics. |
 | [Errors](Errors.md) | Handle stable errors and show App-localized user messages. |
 | [Security](Security.md) | Apply certificate or public-key pinning with a safe certificate-rotation plan. |
+| [Backend API reference](BackendReferencePlugin.md) | Generate a browsable backend, endpoint, parameter, and configuration reference from an Xcode project. |
 
 ## Recommended adoption path
 

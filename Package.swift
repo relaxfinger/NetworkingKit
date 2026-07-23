@@ -26,6 +26,10 @@ let package = Package(
             name: "BackendReferencePlugin",
             targets: ["BackendReferencePlugin"]
         ),
+        .plugin(
+            name: "BackendReferenceCommandPlugin",
+            targets: ["BackendReferenceCommandPlugin"]
+        ),
     ],
     targets: [
         .target(
@@ -41,6 +45,21 @@ let package = Package(
             capability: .buildTool(),
             dependencies: ["BackendReferenceGenerator"],
             path: "Plugins/BackendReferencePlugin"
+        ),
+        .plugin(
+            name: "BackendReferenceCommandPlugin",
+            capability: .command(
+                intent: .custom(
+                    verb: "generate-backend-reference",
+                    description: "Generate the backend API HTML reference."
+                ),
+                permissions: [
+                    .writeToPackageDirectory(
+                        reason: "Generates the backend API HTML reference in Docs/BackendAPIReference."
+                    )
+                ]
+            ),
+            path: "Plugins/BackendReferenceCommandPlugin"
         ),
         .testTarget(
             name: "NetworkingKitTests",

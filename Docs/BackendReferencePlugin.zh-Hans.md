@@ -1,8 +1,24 @@
 # 后端 API HTML 索引
 
-`BackendReferencePlugin` 会在每次编译 App Target 时扫描 Swift 源码，生成后端服务器、Feature、端点、请求参数与网络配置的 HTML 索引。默认推荐使用 Build Tool Plugin：无需维护 `--package-path` 或额外脚本，且始终与本次构建使用相同的源码。
+NetworkingKit 同时提供 Build Tool Plugin 和 Command Plugin，用于扫描 App 的 Swift 源码并生成后端服务器、Feature、端点、请求参数与网络配置的 HTML 索引。
 
-## 推荐：Build Tool Plugin
+## 推荐：Command Plugin 写入 Docs
+
+需要在 App 根目录保留可浏览的 HTML 时，使用 `BackendReferenceCommandPlugin`。它会生成：
+
+```text
+$SRCROOT/Docs/BackendAPIReference/index.html
+```
+
+在 Xcode 中执行：
+
+1. 选择 **File → Packages → Generate Backend API Reference**。
+2. 第一次执行时，审阅插件并选择 **Allow Command to Change Files**，授权它写入项目的 `Docs/` 目录。
+3. 在 Finder 或 Xcode 中打开 `Docs/BackendAPIReference/index.html`。
+
+Command Plugin 使用 XcodeProjectPlugin API 定位当前 App 工程，不需要配置 `--package-path`、Run Script 或环境变量。适合在需要时刷新并提交、归档或分享这份文档。
+
+## Build Tool Plugin：构建产物预览
 
 ### Xcode 配置步骤
 
@@ -12,11 +28,11 @@
 4. 直接 Build App。构建日志会显示 **Generate backend API reference**。
 5. 在 Xcode Report navigator 中展开该构建步骤；HTML 位于该 Target 对应的 Derived Data 插件输出目录，入口文件为 `BackendAPIReference/index.html`。在 Finder 中打开该目录即可浏览文档。
 
-Build Tool Plugin 受 SwiftPM 沙盒保护，只能写入 Derived Data 的插件工作目录，不能写回 App 的源码根目录。这是它无需路径配置、可安全在本地与 CI 自动运行的原因。
+Build Tool Plugin 受 SwiftPM 沙盒保护，只能写入 Derived Data 的插件工作目录，不能写回 App 的源码根目录。它适合每次构建时自动生成预览；若需要固定的 Docs 文件，请使用上面的 Command Plugin。
 
 ## 备用：导出到 App 根目录
 
-只有需要将 HTML 固定保存为 `$SRCROOT/BackendAPIReference/`、提交到制品库或交付给非 Xcode 用户时，才在 App Target 最后添加一个 **Run Script Build Phase**。该备用方式需要为 Package checkout 提供路径：
+只有无法从 Xcode 运行 Command Plugin、但仍需在自动化环境导出 HTML 时，才使用 Run Script Build Phase。该备用方式需要为 Package checkout 提供路径：
 
 ```sh
 swift run --package-path "$NETWORKING_KIT_CHECKOUT" BackendReferenceGenerator \
