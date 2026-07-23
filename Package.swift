@@ -22,11 +22,25 @@ let package = Package(
             name: "NetworkingKit",
             targets: ["NetworkingKit"]
         ),
+        .plugin(
+            name: "BackendReferencePlugin",
+            targets: ["BackendReferencePlugin"]
+        ),
     ],
     targets: [
         .target(
             name: "NetworkingKit",
             path: "Sources/NetworkingKit"
+        ),
+        .executableTarget(
+            name: "BackendReferenceGenerator",
+            path: "Sources/BackendReferenceGenerator"
+        ),
+        .plugin(
+            name: "BackendReferencePlugin",
+            capability: .buildTool(),
+            dependencies: ["BackendReferenceGenerator"],
+            path: "Plugins/BackendReferencePlugin"
         ),
         .testTarget(
             name: "NetworkingKitTests",

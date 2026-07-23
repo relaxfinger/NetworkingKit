@@ -1,0 +1,26 @@
+import PackagePlugin
+import Foundation
+
+@main
+struct BackendReferencePlugin: BuildToolPlugin {
+    func createBuildCommands(context: PluginContext, target: Target) throws -> [Command] {
+        guard let sourceTarget = target as? SourceModuleTarget else { return [] }
+
+        let tool = try context.tool(named: "BackendReferenceGenerator")
+        let stamp = context.pluginWorkDirectoryURL.appendingPathComponent("backend-reference.stamp")
+        let outputDirectory = context.pluginWorkDirectoryURL.appendingPathComponent("BackendAPIReference", isDirectory: true)
+
+        return [
+            .buildCommand(
+                displayName: "Generate backend API reference",
+                executable: tool.url,
+                arguments: [
+                    "--source-directory", sourceTarget.directory.string,
+                    "--output-directory", outputDirectory.path,
+                    "--stamp", stamp.path
+                ],
+                outputFiles: [stamp]
+            )
+        ]
+    }
+}

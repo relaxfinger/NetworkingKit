@@ -2,6 +2,13 @@
 
 All notable changes to NetworkingKit are documented in this file.
 
+## 2.4.0 - 2026-07-23
+
+### Added
+
+- Add `BackendReferencePlugin` and its generator for build-time HTML references of app backend servers, configuration values, feature-grouped endpoints, request parameters, and source locations.
+- Add generated backend-reference HTML to the NetworkingKit Demo.
+
 ## 2.3.8 - 2026-07-19
 
 ### Changed
