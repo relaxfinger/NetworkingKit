@@ -2,6 +2,13 @@
 
 All notable changes to NetworkingKit are documented in this file.
 
+## 2.4.1 - 2026-07-23
+
+### Fixed
+
+- Support applying `BackendReferencePlugin` to Xcode project targets through `XcodeBuildToolPlugin`.
+- Use URL-based plugin APIs to avoid deprecated `Path` API warnings.
+
 ## 2.4.0 - 2026-07-23
 
 ### Added
