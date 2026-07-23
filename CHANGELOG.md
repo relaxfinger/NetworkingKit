@@ -2,6 +2,12 @@
 
 All notable changes to NetworkingKit are documented in this file.
 
+## 2.4.3 - 2026-07-23
+
+### Added
+
+- Add `BackendReferenceCommandPlugin` for generating the backend API HTML reference in an Xcode project's `Docs/BackendAPIReference` directory.
+
 ## 2.4.2 - 2026-07-23
 
 ### Fixed

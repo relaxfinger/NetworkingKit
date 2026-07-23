@@ -33,7 +33,7 @@ Or add the package manifest dependency:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/relaxfinger/NetworkingKit.git", from: "2.4.2")
+    .package(url: "https://github.com/relaxfinger/NetworkingKit.git", from: "2.4.3")
 ]
 ```
 
@@ -139,6 +139,7 @@ The README is intentionally the shortest path to a first request. Use the detail
 | Logs, tracing, and metrics | [Observability](Docs/Observability.md) | [可观测性](Docs/Observability.zh-Hans.md) |
 | Stable errors and localized UI messages | [Errors](Docs/Errors.md) | [错误与本地化](Docs/Errors.zh-Hans.md) |
 | Certificate and public-key pinning | [Security](Docs/Security.md) | [传输安全](Docs/Security.zh-Hans.md) |
+| Backend API HTML reference and Xcode plugins | [Backend API reference](Docs/BackendReferencePlugin.md) | [后端 API HTML 索引](Docs/BackendReferencePlugin.zh-Hans.md) |
 
 ## Demo
 

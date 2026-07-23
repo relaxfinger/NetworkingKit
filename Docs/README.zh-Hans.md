@@ -14,6 +14,7 @@
 | [可观测性](Observability.zh-Hans.md) | 添加请求 ID、OSLog、OpenTelemetry 或聚合网络指标。 |
 | [错误与本地化](Errors.zh-Hans.md) | 处理稳定错误并显示 App 本地化的用户文案。 |
 | [传输安全](Security.zh-Hans.md) | 在有完善证书轮换方案时使用证书或公钥 pinning。 |
+| [后端 API HTML 索引](BackendReferencePlugin.zh-Hans.md) | 从 Xcode 工程生成可浏览的后端、端点、参数与配置参考。 |
 
 ## 推荐接入顺序
 
