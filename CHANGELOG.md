@@ -2,6 +2,12 @@
 
 All notable changes to NetworkingKit are documented in this file.
 
+## 2.4.8 - 2026-07-23
+
+### Added
+
+- Add English and Simplified Chinese generated HTML documentation UI, defaulting to English with a persistent in-page language switch.
+
 ## 2.4.7 - 2026-07-23
 
 ### Fixed

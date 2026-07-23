@@ -16,6 +16,8 @@ NetworkingKit 会静态扫描 Xcode App 的 Swift 源码，生成可搜索的后
 | `BackendReferenceCommandPlugin` | 在 Xcode 手动执行 | `$SRCROOT/Docs/BackendAPIReference/` | 固定保存、提交或分享 HTML 文档 |
 | `BackendReferencePlugin` | 每次构建自动执行 | Xcode Derived Data 的插件工作目录 | 不改动工程文件的构建期预览 |
 
+生成的 HTML 默认显示英文。可在页面顶部使用 **EN / 中文** 切换文档界面语言；浏览器会记住该选择。
+
 ## 开始前准备
 
 1. 在 App 工程中选择 **File → Add Package Dependencies…**，添加 NetworkingKit。
