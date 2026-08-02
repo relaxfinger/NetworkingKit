@@ -38,7 +38,12 @@ let package = Package(
         ),
         .executableTarget(
             name: "BackendReferenceGenerator",
+            dependencies: ["BackendReferenceGeneratorCore"],
             path: "Sources/BackendReferenceGenerator"
+        ),
+        .target(
+            name: "BackendReferenceGeneratorCore",
+            path: "Sources/BackendReferenceGeneratorCore"
         ),
         .plugin(
             name: "BackendReferencePlugin",
@@ -59,6 +64,7 @@ let package = Package(
                     )
                 ]
             ),
+            dependencies: ["BackendReferenceGenerator"],
             path: "Plugins/BackendReferenceCommandPlugin"
         ),
         .testTarget(
@@ -70,6 +76,11 @@ let package = Package(
             name: "NetworkingKitAPICompatibilityTests",
             dependencies: ["NetworkingKit"],
             path: "Tests/NetworkingKitAPICompatibilityTests"
+        ),
+        .testTarget(
+            name: "BackendReferenceGeneratorTests",
+            dependencies: ["BackendReferenceGeneratorCore"],
+            path: "Tests/BackendReferenceGeneratorTests"
         ),
     ],
     swiftLanguageModes: [.v6]
