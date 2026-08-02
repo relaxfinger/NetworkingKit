@@ -2,6 +2,16 @@
 
 All notable changes to NetworkingKit are documented in this file.
 
+## 2.4.9 - 2026-08-02
+
+### Changed
+
+- Package the backend reference generator as an executable tool with a testable Core target, so the Xcode command plugin runs the built generator instead of evaluating package source files.
+
+### Added
+
+- Add focused generator parsing tests.
+
 ## 2.4.8 - 2026-07-23
 
 ### Added

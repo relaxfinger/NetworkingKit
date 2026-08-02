@@ -3,30 +3,22 @@ import PackagePlugin
 
 @main
 struct BackendReferenceCommandPlugin: CommandPlugin {
-    private var pluginPackageRoot: URL {
-        URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-    }
-
     func performCommand(context: PluginContext, arguments: [String]) throws {
-        try generate(appRoot: context.package.directoryURL, scriptsRoot: context.package.directoryURL)
+        try generate(appRoot: context.package.directoryURL, toolURL: context.tool(named: "BackendReferenceGenerator").url)
     }
 
-    fileprivate func generate(appRoot: URL, scriptsRoot: URL) throws {
-        let generator = scriptsRoot.appending(path: "Sources/BackendReferenceGenerator/main.swift")
+    fileprivate func generate(appRoot: URL, toolURL: URL) throws {
         let outputDirectory = appRoot.appending(path: "Docs/BackendAPIReference", directoryHint: .isDirectory)
-        try runSwift(script: generator, arguments: [
+        try runGenerator(toolURL: toolURL, arguments: [
             "--source-directory", appRoot.path,
             "--output-directory", outputDirectory.path
         ])
     }
 
-    private func runSwift(script: URL, arguments: [String]) throws {
+    private func runGenerator(toolURL: URL, arguments: [String]) throws {
         let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        process.arguments = ["swift", script.path] + arguments
+        process.executableURL = toolURL
+        process.arguments = arguments
         var environment = ProcessInfo.processInfo.environment
         environment.removeValue(forKey: "SDKROOT")
         process.environment = environment
@@ -43,7 +35,7 @@ import XcodeProjectPlugin
 
 extension BackendReferenceCommandPlugin: XcodeCommandPlugin {
     func performCommand(context: XcodePluginContext, arguments: [String]) throws {
-        try generate(appRoot: context.xcodeProject.directoryURL, scriptsRoot: pluginPackageRoot)
+        try generate(appRoot: context.xcodeProject.directoryURL, toolURL: context.tool(named: "BackendReferenceGenerator").url)
     }
 }
 #endif
