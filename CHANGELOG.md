@@ -2,6 +2,12 @@
 
 All notable changes to NetworkingKit are documented in this file.
 
+## 2.4.10 - 2026-08-03
+
+### Fixed
+
+- Resolve static Swift string interpolations in generated backend API endpoint paths, and render dynamic path segments as placeholders instead of raw `\\(...)` expressions.
+
 ## 2.4.9 - 2026-08-02
 
 ### Changed

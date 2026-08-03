@@ -156,7 +156,8 @@ public enum BackendReferenceGenerator {
 
     static func resolvePathExpression(_ expression: String, in documents: [(URL, String)], currentType: String? = nil) -> String? {
         if expression.hasPrefix("\""), expression.hasSuffix("\"") {
-            return String(expression.dropFirst().dropLast())
+            let literal = String(expression.dropFirst().dropLast())
+            return resolveInterpolatedPathLiteral(literal, in: documents, currentType: currentType)
         }
 
         if let coalesced = coalescedExpressions(in: expression) {
@@ -183,6 +184,85 @@ public enum BackendReferenceGenerator {
         }
 
         return nil
+    }
+
+    static func resolveInterpolatedPathLiteral(_ literal: String, in documents: [(URL, String)], currentType: String? = nil) -> String {
+        var output = ""
+        var index = literal.startIndex
+
+        while index < literal.endIndex {
+            guard literal[index...].hasPrefix(#"\("#) else {
+                output.append(literal[index])
+                index = literal.index(after: index)
+                continue
+            }
+
+            let interpolationStart = literal.index(index, offsetBy: 2)
+            guard let interpolationEnd = closingParenthesis(in: literal, from: interpolationStart) else {
+                output.append(literal[index])
+                index = literal.index(after: index)
+                continue
+            }
+
+            let interpolation = String(literal[interpolationStart..<interpolationEnd])
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            output += resolvePathInterpolation(interpolation, in: documents, currentType: currentType)
+            index = literal.index(after: interpolationEnd)
+        }
+
+        return output
+    }
+
+    static func resolvePathInterpolation(_ expression: String, in documents: [(URL, String)], currentType: String? = nil) -> String {
+        if let resolved = resolvePathExpression(expression, in: documents, currentType: currentType)
+            ?? resolveStringExpression(expression, in: documents, currentType: currentType) {
+            return resolved
+        }
+
+        return "{\(placeholderName(for: expression))}"
+    }
+
+    static func closingParenthesis(in source: String, from start: String.Index) -> String.Index? {
+        var index = start
+        var depth = 1
+        var inString = false
+        var escaped = false
+
+        while index < source.endIndex {
+            let character = source[index]
+            if character == "\"" && !escaped {
+                inString.toggle()
+            } else if !inString {
+                if character == "(" {
+                    depth += 1
+                } else if character == ")" {
+                    depth -= 1
+                    if depth == 0 {
+                        return index
+                    }
+                }
+            }
+
+            escaped = character == "\\" && !escaped
+            if character != "\\" {
+                escaped = false
+            }
+            index = source.index(after: index)
+        }
+
+        return nil
+    }
+
+    static func placeholderName(for expression: String) -> String {
+        let trimmed = expression.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let first = trimmed.split(separator: ".").first,
+           first.range(of: #"^[A-Za-z_]\w*$"#, options: .regularExpression) != nil {
+            return String(first)
+        }
+        if let match = trimmed.range(of: #"[A-Za-z_]\w*"#, options: .regularExpression) {
+            return String(trimmed[match])
+        }
+        return "value"
     }
 
     static func resolveStringExpression(_ expression: String, in documents: [(URL, String)], currentType: String? = nil) -> String? {

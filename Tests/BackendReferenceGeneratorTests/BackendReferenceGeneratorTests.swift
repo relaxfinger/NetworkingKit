@@ -134,6 +134,82 @@ final class BackendReferenceGeneratorTests: XCTestCase {
         XCTAssertEqual(endpoints.first?.path, "functions/v1/generate-feedback")
     }
 
+    func testResolvesInterpolatedStaticPathAndFormatsDynamicSegments() {
+        let documents = [
+            document("BandUpSpeaking/Networking/BandUpAPIClient.swift", """
+            import Foundation
+            import NetworkingKit
+
+            nonisolated final class BandUpAPIClient: SharedNetworkClient, @unchecked Sendable {
+                let baseURL = BandUpAPIEndpoint.feedbackBaseURL
+                let session = URLSession.shared
+                let configuration = NetworkConfiguration(timeoutInterval: BandUpAPIEndpoint.timeoutSeconds)
+            }
+
+            nonisolated protocol BandUpAPIRequest: NetworkRequest where Client == BandUpAPIClient {}
+            """),
+            document("BandUpSpeaking/Networking/BandUpAPIEndpoint.swift", """
+            import Foundation
+
+            nonisolated enum BandUpAPIEndpoint {
+                private static let defaultFeedbackEndpointURLString = "https://xcbyvombxwnxuxydhfcj.supabase.co/functions/v1/generate-feedback"
+                private static let defaultFeedbackEndpointURL = URL(string: defaultFeedbackEndpointURLString)!
+                static let timeoutSeconds: TimeInterval = 30
+
+                static var feedbackBaseURL: URL {
+                    splitEndpointURL(defaultFeedbackEndpointURL).baseURL
+                }
+
+                static var feedbackPath: String {
+                    splitEndpointURL(defaultFeedbackEndpointURL).path
+                }
+
+                private static func splitEndpointURL(_ endpointURL: URL) -> (baseURL: URL, path: String) {
+                    let path = endpointURL.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+                    return (URL(string: endpointURL.absoluteString)!, path)
+                }
+            }
+            """),
+            document("BandUpSpeaking/Networking/FeedbackHistoryService.swift", """
+            import Foundation
+            import NetworkingKit
+
+            nonisolated private struct GenerateFeedbackRequest: BandUpAPIRequest, RestfulRequest {
+                typealias Response = RemoteFeedbackResponse
+                let body: RemoteFeedbackRequest
+
+                var path: String { "\\(BandUpAPIEndpoint.feedbackPath)/feedback" }
+                var method: HTTPMethod { .post }
+            }
+
+            nonisolated private struct FeedbackHistoryDetailRequest: BandUpAPIRequest, RestfulRequest {
+                typealias Response = RemoteFeedbackHistoryDetail
+                let id: UUID
+
+                var path: String { "\\(BandUpAPIEndpoint.feedbackPath)/feedback-history/\\(id.uuidString)" }
+                var method: HTTPMethod { .get }
+            }
+            """)
+        ]
+
+        let endpoints = BackendReferenceGenerator.parseEndpoints(
+            documents,
+            protocolClients: BackendReferenceGenerator.parseProtocolClients(documents),
+            root: root.appendingPathComponent("BandUpSpeaking")
+        )
+        let paths = Dictionary(uniqueKeysWithValues: endpoints.map { ($0.name, $0.path) })
+
+        XCTAssertEqual(
+            paths["GenerateFeedbackRequest"],
+            "functions/v1/generate-feedback/feedback"
+        )
+        XCTAssertEqual(
+            paths["FeedbackHistoryDetailRequest"],
+            "functions/v1/generate-feedback/feedback-history/{id}"
+        )
+        XCTAssertFalse(paths.values.contains { $0.contains(#"\("#) })
+    }
+
     func testUsesSourcePathFeatureWhenNoMarkExists() {
         let sourceURL = root.appendingPathComponent("Features/Billing/BillingRequests.swift")
         let source = """
