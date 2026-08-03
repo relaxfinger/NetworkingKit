@@ -76,7 +76,9 @@ final class AccountAPIClient: SharedNetworkClient, @unchecked Sendable {
     static let shared = AccountAPIClient()
     let baseURL = URL(string: "https://api.example.com")!
     let session = URLSession.shared
-    let configuration = NetworkConfiguration(timeoutInterval: 15)
+    let defaultProfile = NetworkClientProfile(
+        configuration: NetworkConfiguration(timeoutInterval: 15)
+    )
 }
 
 protocol AccountRequest: NetworkRequest where Client == AccountAPIClient {}
@@ -89,7 +91,7 @@ struct GetProfileRequest: AccountRequest, RestfulRequest {
 }
 ```
 
-- A `NetworkClient` or `SharedNetworkClient` `baseURL` identifies one server.
+- A `NetworkClient` or `SharedNetworkClient` `baseURL` identifies one server. Requests using another profile still belong to that same server page.
 - A request protocol constrained to one concrete client associates request types with that server.
 - `RestfulRequest` and `GraphQLRequest` declarations become endpoints. GraphQL endpoints use `/graphql` and `POST`; their `query`, `variables`, and `operationName` declarations are shown as request parameters when statically available.
 - The closest preceding `// MARK: - Feature name` groups the endpoints.

@@ -7,7 +7,7 @@ NetworkingKit is a native Swift networking library for iOS, macOS, tvOS, and wat
 ## Highlights
 
 - Typed REST and GraphQL requests with `async/await` and Combine.
-- Client-scoped configuration for timeouts, retries, codecs, and localized errors.
+- Client profiles for shared headers, authentication, timeouts, retries, and localized errors on one base URL.
 - Interceptors for headers, signing, authentication, logging, response envelopes, and test behavior.
 - HTTP caching with memory or disk storage, cache policies, ETag revalidation, `304`, `Vary`, and offline reads.
 - Token refresh coordination, request concurrency limits, and route-scoped circuit breakers.
@@ -33,7 +33,7 @@ Or add the package manifest dependency:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/relaxfinger/NetworkingKit.git", from: "2.4.9")
+    .package(url: "https://github.com/relaxfinger/NetworkingKit.git", from: "2.5.0")
 ]
 ```
 
@@ -41,9 +41,9 @@ Add `NetworkingKit` to the target that defines requests or calls APIs.
 
 ## Quick start
 
-### 1. Create a client for one backend
+### 1. Create a client for one base URL
 
-One client owns the base URL, session, defaults, and shared request behavior for one backend. An App can define more than one client when it communicates with genuinely different backend services.
+One client owns one base URL, its session, transport, codecs, and request profiles. Use profiles when request families on that base URL need different shared behavior.
 
 ```swift
 import Foundation
@@ -54,9 +54,12 @@ final class AccountAPIClient: SharedNetworkClient, @unchecked Sendable {
 
     let baseURL = URL(string: "https://api.example.com")!
     let session: URLSession
-    let configuration = NetworkConfiguration(
-        timeoutInterval: 15,
-        retryPolicy: RetryPolicy(maxAttempts: 3)
+    let defaultProfile = NetworkClientProfile(
+        interceptors: [CommonHeadersInterceptor()],
+        configuration: NetworkConfiguration(
+            timeoutInterval: 15,
+            retryPolicy: RetryPolicy(maxAttempts: 3)
+        )
     )
 
     private init() {
@@ -73,7 +76,7 @@ final class AccountAPIClient: SharedNetworkClient, @unchecked Sendable {
 
 ### 2. Bind requests to that client
 
-The App-level protocol gives every request for this backend the same concrete client. It does not contain headers, authentication, logging, or cache policy; those belong on the client through interceptors and transports.
+The App-level protocol gives every request for this base URL the same concrete client. Shared behavior belongs in client-owned profiles; endpoint paths, bodies, and query items remain on requests.
 
 ```swift
 protocol AccountRequest: NetworkRequest where Client == AccountAPIClient {}
@@ -141,6 +144,7 @@ The README is intentionally the shortest path to a first request. Use the detail
 | --- | --- | --- |
 | Documentation index | [Docs](Docs/README.md) | [文档索引](Docs/README.zh-Hans.md) |
 | Client, requests, REST, GraphQL, and Combine | [Getting started](Docs/GettingStarted.md) | [快速入门](Docs/GettingStarted.zh-Hans.md) |
+| Multiple request behaviors on one base URL | [Client profiles](Docs/ClientProfiles.md) | [Client Profile](Docs/ClientProfiles.zh-Hans.md) |
 | Memory/disk cache, HTTP semantics, offline mode | [Caching](Docs/Caching.md) | [缓存](Docs/Caching.zh-Hans.md) |
 | Shared request/response processing | [Interceptors](Docs/Interceptors.md) | [拦截器](Docs/Interceptors.zh-Hans.md) |
 | Bearer tokens and refresh coordination | [Authentication](Docs/Authentication.md) | [认证](Docs/Authentication.zh-Hans.md) |
@@ -152,7 +156,7 @@ The README is intentionally the shortest path to a first request. Use the detail
 
 ## Demo
 
-[`Examples/NetworkingKitDemo`](Examples/NetworkingKitDemo) is a SwiftUI iOS and macOS app that demonstrates REST, GraphQL, interceptors, token refresh wiring, disk caching, a route circuit breaker, concurrency limiting, and localized errors.
+[`Examples/NetworkingKitDemo`](Examples/NetworkingKitDemo) is a SwiftUI iOS and macOS app that demonstrates two request profiles on one client, REST, GraphQL, interceptors, token refresh wiring, disk caching, a route circuit breaker, concurrency limiting, and localized errors.
 
 ## Development
 

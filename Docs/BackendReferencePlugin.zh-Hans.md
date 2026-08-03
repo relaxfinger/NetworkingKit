@@ -76,7 +76,9 @@ final class AccountAPIClient: SharedNetworkClient, @unchecked Sendable {
     static let shared = AccountAPIClient()
     let baseURL = URL(string: "https://api.example.com")!
     let session = URLSession.shared
-    let configuration = NetworkConfiguration(timeoutInterval: 15)
+    let defaultProfile = NetworkClientProfile(
+        configuration: NetworkConfiguration(timeoutInterval: 15)
+    )
 }
 
 protocol AccountRequest: NetworkRequest where Client == AccountAPIClient {}
@@ -89,7 +91,7 @@ struct GetProfileRequest: AccountRequest, RestfulRequest {
 }
 ```
 
-- `NetworkClient` / `SharedNetworkClient` 的 `baseURL` 表示一个后端服务器。
+- `NetworkClient` / `SharedNetworkClient` 的 `baseURL` 表示一个后端服务器；使用其他 Profile 的请求仍归入同一个服务器页面。
 - 绑定到某个具体 Client 的请求协议，会将 Request 关联到对应服务器。
 - `RestfulRequest` 和 `GraphQLRequest` 声明会被识别为端点。GraphQL 端点固定为 `/graphql` 和 `POST`；能够静态识别的 `query`、`variables` 与 `operationName` 会展示在参数列中。
 - 请求声明上方最近的 `// MARK: - Feature 名称` 用于 Feature 分组。

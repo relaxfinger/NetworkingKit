@@ -13,7 +13,7 @@
 
 响应阶段反向执行，使外层拦截器可以看到内层处理后的结果。任一方法抛错都会转换为 `NetworkError.interceptorFailed`。
 
-## 在 Client 中一次注册
+## 在 Client Profile 中一次注册
 
 ```swift
 final class APIClient: SharedNetworkClient, @unchecked Sendable {
@@ -21,13 +21,13 @@ final class APIClient: SharedNetworkClient, @unchecked Sendable {
     let baseURL = URL(string: "https://api.example.com")!
     let session = URLSession(configuration: .default)
 
-    var interceptors: [any NetworkInterceptor] {
-        [
+    let defaultProfile = NetworkClientProfile(
+        interceptors: [
             RequestIDInterceptor(),
             CommonHeadersInterceptor(),
             LoggingInterceptor(logBodies: false) { print($0) }
         ]
-    }
+    )
 }
 ```
 
@@ -46,7 +46,7 @@ struct CommonHeadersInterceptor: NetworkInterceptor {
 }
 ```
 
-这样 App 级 Header 始终一致。确实需要不同 Header 的单个接口，仍可通过 `NetworkRequest.headers` 返回。
+这样共享 Header 始终一致。某一请求族需要不同拦截器链时，应选择另一个 [Client Profile](ClientProfiles.zh-Hans.md)；只有单个接口特殊时，仍可通过 `NetworkRequest.headers` 返回。
 
 ## 示例：拆开统一响应信封
 

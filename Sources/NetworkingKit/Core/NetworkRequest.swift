@@ -11,7 +11,7 @@ import Foundation
 
 /// The base protocol for all network requests.
 ///
-/// `Client` keeps a request bound to its owning backend configuration at compile time,
+/// `Client` keeps a request bound to its owning base URL at compile time,
 /// while `Response` describes the model decoded from a successful response.
 public protocol NetworkRequest<Client, Response>: Sendable {
     associatedtype Client: NetworkClient
@@ -19,6 +19,9 @@ public protocol NetworkRequest<Client, Response>: Sendable {
     
     /// The client supplied by an app-specific base type or concrete request.
     var client: Client { get }
+
+    /// The client-owned behavior profile used to execute this request.
+    var clientProfile: NetworkClientProfile { get }
     
     /// The request path relative to the client's base URL.
     var path: String { get }

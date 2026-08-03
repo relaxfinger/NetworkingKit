@@ -10,7 +10,7 @@ import Foundation
 
 /// Describes the network dependencies and defaults owned by an app.
 ///
-/// Implement this protocol to configure the base URL, transport, and shared interceptors.
+/// Implement this protocol to configure one base URL, its transport, and request profiles.
 public protocol NetworkClient: AnyObject, Sendable {
     /// The base URL used to resolve request paths.
     var baseURL: URL { get }
@@ -23,13 +23,8 @@ public protocol NetworkClient: AnyObject, Sendable {
     /// The default implementation uses `session`. Override it for deterministic tests or a custom transport.
     var transport: any NetworkTransport { get }
     
-    /// The interceptors to run in declaration order.
-    var interceptors: [any NetworkInterceptor] { get }
-
-    /// The credential refresher used to replay one unauthorized request.
-    ///
-    /// Set this to the same `RefreshingAuthInterceptor` instance registered in `interceptors`.
-    var authentication: (any AuthenticationRefreshing)? { get }
+    /// The behavior used by requests that do not select another client profile.
+    var defaultProfile: NetworkClientProfile { get }
 
     /// Observers that receive non-blocking lifecycle events for every transport attempt.
     var observers: [any NetworkObserving] { get }
@@ -47,13 +42,6 @@ public protocol NetworkClient: AnyObject, Sendable {
     /// Return a configured decoder when the app uses custom date or key strategies.
     func makeDecoder() -> JSONDecoder
     
-    /// The default network policy for this client instance.
-    var configuration: NetworkConfiguration { get }
-
-    /// The legacy retry-policy entry point.
-    ///
-    /// New code should configure retries through `configuration.retryPolicy`.
-    var retryPolicy: RetryPolicy { get }
 }
 
 /// A network client exposed as a shared instance by an application.
@@ -66,11 +54,8 @@ public protocol SharedNetworkClient: NetworkClient {
 
 public extension NetworkClient {
     var transport: any NetworkTransport { URLSessionTransport(session: session) }
-    var authentication: (any AuthenticationRefreshing)? { nil }
     var observers: [any NetworkObserving] { [] }
     var executionController: (any NetworkExecutionControlling)? { nil }
     func makeEncoder() -> JSONEncoder { JSONEncoder() }
     func makeDecoder() -> JSONDecoder { JSONDecoder() }
-    var retryPolicy: RetryPolicy { .none }
-    var configuration: NetworkConfiguration { NetworkConfiguration(retryPolicy: retryPolicy) }
 }

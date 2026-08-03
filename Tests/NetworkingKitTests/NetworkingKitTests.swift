@@ -375,6 +375,69 @@ final class NetworkingKitTests: XCTestCase {
         XCTAssertEqual(try request.buildURLRequest().timeoutInterval, expectedTimeout)
     }
 
+    func testRequestSelectsProfileInterceptorsAndConfigurationOnOneClient() async throws {
+        let counter = AttemptCounter()
+        let alternateProfile = NetworkClientProfile(
+            interceptors: [NamedProfileInterceptor(name: "alternate")],
+            configuration: NetworkConfiguration(
+                timeoutInterval: 7,
+                retryPolicy: RetryPolicy(maxAttempts: 2, initialDelay: 0)
+            )
+        )
+        let client = makeClient(
+            configuration: NetworkConfiguration(timeoutInterval: 20),
+            alternateProfile: alternateProfile
+        ) { request in
+            XCTAssertEqual(request.url?.host, "example.com")
+            XCTAssertEqual(request.value(forHTTPHeaderField: "X-Network-Profile"), "alternate")
+            let attempt = counter.increment()
+            let statusCode = attempt == 1 ? 503 : 200
+            let data = statusCode == 200
+                ? #"{"id":"42","name":"Ada"}"#.data(using: .utf8)!
+                : Data()
+            return (.init(url: try! XCTUnwrap(request.url), statusCode: statusCode, httpVersion: nil, headerFields: nil)!, data)
+        }
+        let request = AlternateGetUserRequest(client: client, id: "42")
+
+        XCTAssertEqual(try request.buildURLRequest().timeoutInterval, 7)
+        let user = try await request.execute()
+
+        XCTAssertEqual(user.name, "Ada")
+        XCTAssertEqual(counter.value, 2)
+    }
+
+    func testAuthenticationRefreshIsIsolatedToSelectedProfile() async throws {
+        let credentials = TestCredentialProvider()
+        let authentication = RefreshingAuthInterceptor(provider: credentials)
+        let authenticatedProfile = NetworkClientProfile(
+            interceptors: [authentication],
+            authentication: authentication
+        )
+        let client = makeClient(alternateProfile: authenticatedProfile) { request in
+            let authorized = request.value(forHTTPHeaderField: "Authorization") == "Bearer fresh-token"
+            let statusCode = authorized ? 200 : 401
+            let data = authorized
+                ? #"{"id":"42","name":"Ada"}"#.data(using: .utf8)!
+                : Data()
+            return (.init(url: try! XCTUnwrap(request.url), statusCode: statusCode, httpVersion: nil, headerFields: nil)!, data)
+        }
+
+        do {
+            let _: User = try await GetUserRequest(client: client, id: "public").execute()
+            XCTFail("Expected the default profile to remain unauthorized")
+        } catch let error as NetworkError {
+            guard case .unauthorized = error else { return XCTFail("Unexpected error: \(error)") }
+        }
+        let publicRefreshCount = await credentials.refreshCount
+        XCTAssertEqual(publicRefreshCount, 0)
+
+        let user = try await AlternateGetUserRequest(client: client, id: "private").execute()
+
+        XCTAssertEqual(user.name, "Ada")
+        let authenticatedRefreshCount = await credentials.refreshCount
+        XCTAssertEqual(authenticatedRefreshCount, 1)
+    }
+
     func testNetworkErrorUsesConfiguredLocalizer() {
         let configuration = NetworkConfiguration(errorLocalizer: TestNetworkErrorLocalizer())
         let error = NetworkError.unauthorized(headers: [:], body: Data())
@@ -403,6 +466,7 @@ final class NetworkingKitTests: XCTestCase {
         interceptors: [any NetworkInterceptor] = [],
         authentication: (any AuthenticationRefreshing)? = nil,
         observers: [any NetworkObserving] = [],
+        alternateProfile: NetworkClientProfile? = nil,
         handler: @escaping StubTransport.Handler = { request in
         (.init(url: try! XCTUnwrap(request.url), statusCode: 200, httpVersion: nil, headerFields: nil)!, Data())
     }) -> TestClient {
@@ -412,7 +476,8 @@ final class NetworkingKitTests: XCTestCase {
             interceptors: interceptors,
             authentication: authentication,
             observers: observers,
-            configuration: configuration ?? NetworkConfiguration(retryPolicy: retryPolicy)
+            configuration: configuration ?? NetworkConfiguration(retryPolicy: retryPolicy),
+            alternateProfile: alternateProfile
         )
     }
 }
@@ -433,6 +498,16 @@ private struct CommonHeadersInterceptor: NetworkInterceptor {
     func adapt(_ request: URLRequest) async throws -> URLRequest {
         var request = request
         request.setValue("iOS", forHTTPHeaderField: "X-Client-Platform")
+        return request
+    }
+}
+
+private struct NamedProfileInterceptor: NetworkInterceptor {
+    let name: String
+
+    func adapt(_ request: URLRequest) async throws -> URLRequest {
+        var request = request
+        request.setValue(name, forHTTPHeaderField: "X-Network-Profile")
         return request
     }
 }
@@ -459,6 +534,18 @@ private struct GetUserRequest: RestfulRequest {
     typealias Response = User
     let client: TestClient
     let id: String
+    var path: String { "users/\(id)" }
+    var method: HTTPMethod { .get }
+    var queryItems: [URLQueryItem]? { nil }
+    var body: (any Encodable & Sendable)? { nil }
+    var contentType: String? { nil }
+}
+
+private struct AlternateGetUserRequest: RestfulRequest {
+    typealias Response = User
+    let client: TestClient
+    let id: String
+    var clientProfile: NetworkClientProfile { client.alternateProfile }
     var path: String { "users/\(id)" }
     var method: HTTPMethod { .get }
     var queryItems: [URLQueryItem]? { nil }
@@ -505,25 +592,28 @@ private final class TestClient: NetworkClient, @unchecked Sendable {
     let baseURL: URL
     let session: URLSession
     let transport: any NetworkTransport
-    let interceptors: [any NetworkInterceptor]
-    let authentication: (any AuthenticationRefreshing)?
+    let defaultProfile: NetworkClientProfile
+    let alternateProfile: NetworkClientProfile
     let observers: [any NetworkObserving]
-    let configuration: NetworkConfiguration
     init(
         baseURL: URL,
         transport: any NetworkTransport,
         interceptors: [any NetworkInterceptor],
         authentication: (any AuthenticationRefreshing)?,
         observers: [any NetworkObserving],
-        configuration: NetworkConfiguration
+        configuration: NetworkConfiguration,
+        alternateProfile: NetworkClientProfile?
     ) {
         self.baseURL = baseURL
         self.session = .shared
         self.transport = transport
-        self.interceptors = interceptors
-        self.authentication = authentication
+        self.defaultProfile = NetworkClientProfile(
+            interceptors: interceptors,
+            authentication: authentication,
+            configuration: configuration
+        )
+        self.alternateProfile = alternateProfile ?? self.defaultProfile
         self.observers = observers
-        self.configuration = configuration
     }
 }
 

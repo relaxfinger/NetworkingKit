@@ -13,7 +13,7 @@ For `interceptors: [A, B, C]`:
 
 This reverse response order lets an outer interceptor see the result after inner processing. Throwing from either method becomes `NetworkError.interceptorFailed`.
 
-## Register once on the client
+## Register once in a client profile
 
 ```swift
 final class APIClient: SharedNetworkClient, @unchecked Sendable {
@@ -21,13 +21,13 @@ final class APIClient: SharedNetworkClient, @unchecked Sendable {
     let baseURL = URL(string: "https://api.example.com")!
     let session = URLSession(configuration: .default)
 
-    var interceptors: [any NetworkInterceptor] {
-        [
+    let defaultProfile = NetworkClientProfile(
+        interceptors: [
             RequestIDInterceptor(),
             CommonHeadersInterceptor(),
             LoggingInterceptor(logBodies: false) { print($0) }
         ]
-    }
+    )
 }
 ```
 
@@ -46,7 +46,7 @@ struct CommonHeadersInterceptor: NetworkInterceptor {
 }
 ```
 
-This keeps app-wide headers consistent. An endpoint that genuinely needs a different header can still return it through `NetworkRequest.headers`.
+This keeps shared headers consistent. A request family that needs a different interceptor chain should select another [client profile](ClientProfiles.md). A single exceptional endpoint can still return a header through `NetworkRequest.headers`.
 
 ## Example: unwrap a shared response envelope
 

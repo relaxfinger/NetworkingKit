@@ -2,7 +2,7 @@
 
 [English](Authentication.md) · [文档索引](README.zh-Hans.md)
 
-认证属于后端共享行为，应配置在 Client，而不是每个 Request。Token 只需读取时使用 `AuthInterceptor`；Bearer Token 会过期时使用 `RefreshingAuthInterceptor`。
+认证属于共享请求行为，应配置在 Client Profile，而不是每个 Request。Token 只需读取时使用 `AuthInterceptor`；Bearer Token 会过期时使用 `RefreshingAuthInterceptor`。
 
 ## 静态或外部提前刷新的 Token
 
@@ -13,7 +13,7 @@ let authentication = AuthInterceptor(tokenProvider: {
     KeychainStore.shared.accessToken
 })
 
-var interceptors: [any NetworkInterceptor] { [authentication] }
+let defaultProfile = NetworkClientProfile(interceptors: [authentication])
 ```
 
 没有 Token 时闭包应返回 `nil`，请求不会携带 `Authorization` Header。
@@ -48,15 +48,16 @@ final class AccountAPIClient: SharedNetworkClient, @unchecked Sendable {
 
     private let refreshingAuth = RefreshingAuthInterceptor(provider: TokenStore.shared)
 
-    var interceptors: [any NetworkInterceptor] {
-        [RequestIDInterceptor(), refreshingAuth]
-    }
-
-    var authentication: (any AuthenticationRefreshing)? { refreshingAuth }
+    lazy var defaultProfile = NetworkClientProfile(
+        interceptors: [RequestIDInterceptor(), refreshingAuth],
+        authentication: refreshingAuth
+    )
 }
 ```
 
 当请求收到 `401 Unauthorized`，并发请求会共享一次刷新操作。刷新成功后，每个请求至多重放一次；刷新失败转换为 `NetworkError.authenticationRefreshFailed`。这避免重复刷新流量和无限重试。
+
+同一 Base URL 下的登录或 Token 刷新接口应选择不包含 Bearer 刷新的 Profile，避免刷新请求递归进入已认证请求链路。参见 [Client Profile](ClientProfiles.zh-Hans.md)。
 
 ## 产品与安全规则
 

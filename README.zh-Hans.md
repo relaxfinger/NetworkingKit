@@ -7,7 +7,7 @@ NetworkingKit 是面向 iOS、macOS、tvOS 与 watchOS 的原生 Swift 网络库
 ## 核心能力
 
 - 强类型 REST 与 GraphQL 请求，同时支持 `async/await` 和 Combine。
-- 按 Client 配置超时、重试、编解码器和多语言错误。
+- 通过 Client Profile 为同一 Base URL 配置公共 Header、认证、超时、重试和多语言错误。
 - 使用拦截器统一处理 Header、签名、认证、日志、响应信封和测试行为。
 - 支持内存/磁盘 HTTP 缓存、缓存策略、ETag 重新验证、`304`、`Vary` 与离线读取。
 - 支持 Token 刷新协调、请求并发限制和按路由熔断。
@@ -33,7 +33,7 @@ https://github.com/relaxfinger/NetworkingKit.git
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/relaxfinger/NetworkingKit.git", from: "2.4.8")
+    .package(url: "https://github.com/relaxfinger/NetworkingKit.git", from: "2.5.0")
 ]
 ```
 
@@ -41,9 +41,9 @@ dependencies: [
 
 ## 快速开始
 
-### 1. 为一个后端创建 Client
+### 1. 为一个 Base URL 创建 Client
 
-一个 Client 统一管理一个后端的基础地址、Session、默认策略和跨请求行为。只有 App 确实要访问不同后端服务时，才需要创建多个 Client。
+一个 Client 统一管理一个 Base URL、Session、Transport、编解码器和请求 Profile。同一 Base URL 下的请求族需要不同共享行为时，使用不同 Profile。
 
 ```swift
 import Foundation
@@ -54,9 +54,12 @@ final class AccountAPIClient: SharedNetworkClient, @unchecked Sendable {
 
     let baseURL = URL(string: "https://api.example.com")!
     let session: URLSession
-    let configuration = NetworkConfiguration(
-        timeoutInterval: 15,
-        retryPolicy: RetryPolicy(maxAttempts: 3)
+    let defaultProfile = NetworkClientProfile(
+        interceptors: [CommonHeadersInterceptor()],
+        configuration: NetworkConfiguration(
+            timeoutInterval: 15,
+            retryPolicy: RetryPolicy(maxAttempts: 3)
+        )
     )
 
     private init() {
@@ -73,7 +76,7 @@ final class AccountAPIClient: SharedNetworkClient, @unchecked Sendable {
 
 ### 2. 将 Request 绑定到该 Client
 
-App 级协议让该后端的所有 Request 都使用同一个具体 Client。协议中不放 Header、认证、日志或缓存策略；这些跨请求能力应在 Client 的拦截器与 Transport 中配置。
+App 级协议让该 Base URL 的所有 Request 都使用同一个具体 Client。共享行为属于 Client 暴露的 Profile；path、body 和 query 等端点信息仍属于 Request。
 
 ```swift
 protocol AccountRequest: NetworkRequest where Client == AccountAPIClient {}
@@ -141,6 +144,7 @@ README 只保留从安装到首个请求的最短路径。构建生产网络层�
 | --- | --- | --- |
 | 文档索引 | [Docs](Docs/README.md) | [文档索引](Docs/README.zh-Hans.md) |
 | Client、Request、REST、GraphQL 与 Combine | [Getting started](Docs/GettingStarted.md) | [快速入门](Docs/GettingStarted.zh-Hans.md) |
+| 同一 Base URL 下的多套请求行为 | [Client profiles](Docs/ClientProfiles.md) | [Client Profile](Docs/ClientProfiles.zh-Hans.md) |
 | 内存/磁盘缓存、HTTP 语义与离线模式 | [Caching](Docs/Caching.md) | [缓存](Docs/Caching.zh-Hans.md) |
 | 统一处理请求与响应 | [Interceptors](Docs/Interceptors.md) | [拦截器](Docs/Interceptors.zh-Hans.md) |
 | Bearer Token 与刷新协调 | [Authentication](Docs/Authentication.md) | [认证](Docs/Authentication.zh-Hans.md) |
@@ -152,7 +156,7 @@ README 只保留从安装到首个请求的最短路径。构建生产网络层�
 
 ## Demo
 
-[`Examples/NetworkingKitDemo`](Examples/NetworkingKitDemo) 是 iOS 和 macOS SwiftUI 示例，演示 REST、GraphQL、拦截器、Token 刷新接入、磁盘缓存、按路由熔断、并发限制和本地化错误。
+[`Examples/NetworkingKitDemo`](Examples/NetworkingKitDemo) 是 iOS 和 macOS SwiftUI 示例，演示同一 Client 的两种请求 Profile、REST、GraphQL、拦截器、Token 刷新接入、磁盘缓存、按路由熔断、并发限制和本地化错误。
 
 ## 开发
 

@@ -22,6 +22,7 @@ final class CatalogAPIClient: SharedNetworkClient, @unchecked Sendable {
 
     let baseURL = URL(string: "https://api.example.com")!
     let session = URLSession(configuration: .default)
+    let defaultProfile = NetworkClientProfile()
 
     private let cache = DiskResponseCache(
         directory: FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]

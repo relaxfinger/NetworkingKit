@@ -18,10 +18,12 @@ final class PublicAPICompatibilityTests: XCTestCase {
         let client = CompatibilityClient()
         let restRequest = CompatibilityRESTRequest(client: client)
         let graphQLRequest = CompatibilityGraphQLRequest(client: client)
+        let profiledRequest = CompatibilityProfiledRequest(client: client)
         assertTypedClient(restRequest)
 
         XCTAssertEqual(try restRequest.buildURLRequest().url?.path, "/v1/users")
         XCTAssertEqual(try graphQLRequest.buildURLRequest().url?.path, "/graphql")
+        XCTAssertEqual(try profiledRequest.buildURLRequest().timeoutInterval, 5)
 
         let cache = InMemoryResponseCache(capacity: 10)
         let registry = CircuitBreakerRegistry(failureThreshold: 2, resetTimeout: 1)
@@ -60,7 +62,22 @@ private final class CompatibilityClient: SharedNetworkClient, @unchecked Sendabl
     static let shared = CompatibilityClient()
     let baseURL = URL(string: "https://api.example.com")!
     let session = URLSession(configuration: .ephemeral)
-    let interceptors: [any NetworkInterceptor] = []
+    let defaultProfile = NetworkClientProfile()
+    let shortRequestProfile = NetworkClientProfile(
+        configuration: NetworkConfiguration(timeoutInterval: 5)
+    )
+}
+
+private struct CompatibilityProfiledRequest: RestfulRequest {
+    typealias Response = CompatibilityUser
+
+    let client: CompatibilityClient
+    var clientProfile: NetworkClientProfile { client.shortRequestProfile }
+    let path = "/v1/profiled"
+    let method: HTTPMethod = .get
+    let queryItems: [URLQueryItem]? = nil
+    let body: (any Encodable & Sendable)? = nil
+    let contentType: String? = nil
 }
 
 private struct CompatibilityUser: Decodable, Sendable {

@@ -86,7 +86,6 @@ public enum BackendReferenceGenerator {
         let defaults = defaultConfigurationItems(in: referenceDocuments)
         let declaration = try! NSRegularExpression(pattern: #"(?s)(?:final\s+)?(?:class|struct)\s+(\w+)\s*:\s*[^\{]*(?:NetworkClient|SharedNetworkClient)[^\{]*\{(.*?)\n\}"#)
         let baseURL = try! NSRegularExpression(pattern: #"baseURL(?:\s*:\s*[^=\n]+)?\s*=\s*([^\n]+)"#)
-        let configuration = try! NSRegularExpression(pattern: #"configuration(?:\s*:\s*[^=\n]+)?\s*=\s*([^\n]+)"#)
         for (_, source) in documents {
             for match in declaration.matches(in: source, range: NSRange(source.startIndex..., in: source)) {
                 let body = completeTypeBody(in: source, declaration: match) ?? capture(2, from: source, match: match)
@@ -95,7 +94,7 @@ public enum BackendReferenceGenerator {
                     let resolvedBaseURL = resolveURLExpression(capture(1, from: body, match: urlMatch).trimmingCharacters(in: .whitespaces), in: documents)
                 else { continue }
                 let name = capture(1, from: source, match: match)
-                let config = configuration.firstMatch(in: body, range: NSRange(body.startIndex..., in: body)).map { capture(1, from: body, match: $0).trimmingCharacters(in: .whitespaces) } ?? "NetworkConfiguration.default"
+                let config = defaultProfileConfiguration(in: body)
                 let resolvedConfiguration = resolveConfiguration(config, in: referenceDocuments)
                 let overrides = configurationItems(from: resolveStaticReferences(in: resolvedConfiguration, documents: referenceDocuments))
                 servers.append(Server(
@@ -106,6 +105,88 @@ public enum BackendReferenceGenerator {
             }
         }
         return servers
+    }
+
+    static func defaultProfileConfiguration(in clientBody: String) -> String {
+        guard
+            let profileName = clientBody.range(of: "defaultProfile"),
+            let initializer = clientBody.range(
+                of: #"NetworkClientProfile\s*\("#,
+                options: .regularExpression,
+                range: profileName.upperBound..<clientBody.endIndex
+            ),
+            let openingParenthesis = clientBody[initializer].lastIndex(of: "("),
+            let arguments = parenthesizedContent(in: clientBody, openingAt: openingParenthesis),
+            let configuration = labeledArgument("configuration", in: arguments)
+        else {
+            return "NetworkConfiguration.default"
+        }
+        return configuration
+    }
+
+    static func parenthesizedContent(in source: String, openingAt opening: String.Index) -> String? {
+        var index = source.index(after: opening)
+        var depth = 1
+        var inString = false
+        var escaped = false
+
+        while index < source.endIndex {
+            let character = source[index]
+            if character == "\"" && !escaped {
+                inString.toggle()
+            } else if !inString {
+                if character == "(" {
+                    depth += 1
+                } else if character == ")" {
+                    depth -= 1
+                    if depth == 0 {
+                        return String(source[source.index(after: opening)..<index])
+                    }
+                }
+            }
+            escaped = character == "\\" && !escaped
+            if character != "\\" { escaped = false }
+            index = source.index(after: index)
+        }
+        return nil
+    }
+
+    static func labeledArgument(_ label: String, in arguments: String) -> String? {
+        guard let labelRange = arguments.range(of: #"\b\#(label)\s*:"#, options: .regularExpression) else {
+            return nil
+        }
+        var index = labelRange.upperBound
+        var parenthesisDepth = 0
+        var bracketDepth = 0
+        var braceDepth = 0
+        var inString = false
+        var escaped = false
+
+        while index < arguments.endIndex {
+            let character = arguments[index]
+            if character == "\"" && !escaped {
+                inString.toggle()
+            } else if !inString {
+                switch character {
+                case "(": parenthesisDepth += 1
+                case ")": parenthesisDepth = max(0, parenthesisDepth - 1)
+                case "[": bracketDepth += 1
+                case "]": bracketDepth = max(0, bracketDepth - 1)
+                case "{": braceDepth += 1
+                case "}": braceDepth = max(0, braceDepth - 1)
+                case "," where parenthesisDepth == 0 && bracketDepth == 0 && braceDepth == 0:
+                    return String(arguments[labelRange.upperBound..<index])
+                        .trimmingCharacters(in: .whitespacesAndNewlines)
+                default: break
+                }
+            }
+            escaped = character == "\\" && !escaped
+            if character != "\\" { escaped = false }
+            index = arguments.index(after: index)
+        }
+
+        return String(arguments[labelRange.upperBound...])
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     static func resolveConfiguration(_ reference: String, in documents: [(URL, String)]) -> String {
@@ -641,7 +722,7 @@ public enum BackendReferenceGenerator {
         let configurationRows = server.configuration.map { key, value in
             "<tr><td>\(escape(key))</td><td><code>\(escape(value))</code></td></tr>"
         }.joined()
-        let configurationTable = "<section class=\"feature-card configuration\"><div class=\"feature-heading\"><div><p class=\"card-kicker\" data-en=\"CLIENT CONFIGURATION\" data-zh=\"客户端配置\">CLIENT CONFIGURATION</p><h2 data-en=\"Configuration\" data-zh=\"配置\">Configuration</h2></div></div><div class=\"table-wrap\"><table><thead><tr><th data-en=\"Configuration Key\" data-zh=\"配置项\">Configuration Key</th><th data-en=\"Value\" data-zh=\"值\">Value</th></tr></thead><tbody>\(configurationRows)</tbody></table></div></section>"
+        let configurationTable = "<section class=\"feature-card configuration\"><div class=\"feature-heading\"><div><p class=\"card-kicker\" data-en=\"DEFAULT PROFILE\" data-zh=\"默认 PROFILE\">DEFAULT PROFILE</p><h2 data-en=\"Configuration\" data-zh=\"配置\">Configuration</h2></div></div><div class=\"table-wrap\"><table><thead><tr><th data-en=\"Configuration Key\" data-zh=\"配置项\">Configuration Key</th><th data-en=\"Value\" data-zh=\"值\">Value</th></tr></thead><tbody>\(configurationRows)</tbody></table></div></section>"
         let noEndpoints = "<p class=\"empty\" data-en=\"No statically recognizable endpoints.\" data-zh=\"没有可静态识别的端点。\">No statically recognizable endpoints.</p>"
         let body = "<header class=\"hero compact\"><div class=\"page-width\"><div class=\"hero-top\"><a class=\"back\" href=\"index.html\" data-en=\"← All Servers\" data-zh=\"← 所有服务器\">← All Servers</a>\(languageSwitch())</div><p class=\"eyebrow\" data-en=\"BACKEND SERVER\" data-zh=\"后端服务器\">BACKEND SERVER</p><h1>\(escape(server.name))</h1><p class=\"lede\"><code>\(escape(server.baseURL))</code> · <span data-en=\"\(endpoints.count) endpoint\(endpoints.count == 1 ? "" : "s")\" data-zh=\"\(endpoints.count) 个端点\">\(endpoints.count) endpoint\(endpoints.count == 1 ? "" : "s")</span></p></div></header><main class=\"page-width\"><input class=\"search\" type=\"search\" placeholder=\"Search features, endpoints, parameters, requests, or sources…\" aria-label=\"Search endpoints\" data-en-placeholder=\"Search features, endpoints, parameters, requests, or sources…\" data-zh-placeholder=\"筛选 Feature、端点、参数、Request 或 Source…\" data-en-aria-label=\"Search endpoints\" data-zh-aria-label=\"筛选端点\" data-filter>\(configurationTable)<section class=\"feature-list\" data-filter-container>\(groups.isEmpty ? noEndpoints : groups)</section><p class=\"empty\" hidden data-en=\"No matching endpoints.\" data-zh=\"没有匹配的端点。\">No matching endpoints.</p></main>"
         try html(title: server.name, body: body).write(to: directory.appendingPathComponent(pageName(for: server)), atomically: true, encoding: .utf8)
@@ -654,8 +735,11 @@ public enum BackendReferenceGenerator {
         let inner = String(configuration.dropFirst("NetworkConfiguration(".count).dropLast())
         return topLevelItems(in: inner).map { item in
             let pair = item.split(separator: ":", maxSplits: 1, omittingEmptySubsequences: false)
-            guard pair.count == 2 else { return (item.trimmingCharacters(in: .whitespaces), "") }
-            return (pair[0].trimmingCharacters(in: .whitespaces), pair[1].trimmingCharacters(in: .whitespaces))
+            guard pair.count == 2 else { return (item.trimmingCharacters(in: .whitespacesAndNewlines), "") }
+            return (
+                pair[0].trimmingCharacters(in: .whitespacesAndNewlines),
+                pair[1].trimmingCharacters(in: .whitespacesAndNewlines)
+            )
         }
     }
 

@@ -18,7 +18,7 @@ final class DemoViewModel: ObservableObject {
 
     var localizedErrorExample: String {
         let error = NetworkError.unauthorized(headers: [:], body: Data())
-        return error.localizedDescription(using: AppNetworkClient.shared.configuration.errorLocalizer)
+        return error.localizedDescription(using: AppNetworkClient.shared.defaultProfile.configuration.errorLocalizer)
     }
 
     func loadRESTCharacter() {
@@ -49,7 +49,7 @@ final class DemoViewModel: ObservableObject {
 
     private func localizedMessage(for error: Error) -> String {
         guard let networkError = error as? NetworkError else { return error.localizedDescription }
-        return networkError.localizedDescription(using: AppNetworkClient.shared.configuration.errorLocalizer)
+        return networkError.localizedDescription(using: AppNetworkClient.shared.defaultProfile.configuration.errorLocalizer)
     }
 }
 
@@ -99,7 +99,6 @@ final class AppNetworkClient: SharedNetworkClient, @unchecked Sendable {
 
     let baseURL = URL(string: "https://rickandmortyapi.com")!
     let session: URLSession
-    let configuration = AppNetworkConfiguration.default
     private let refreshingAuthentication = RefreshingAuthInterceptor(provider: DemoTokenProvider.shared)
     private let responseCache = DiskResponseCache(
         directory: DemoCacheConfiguration.directory,
@@ -120,16 +119,14 @@ final class AppNetworkClient: SharedNetworkClient, @unchecked Sendable {
         )
     }
 
-    var interceptors: [any NetworkInterceptor] {
-        [
-            RequestIDInterceptor(),
-            DemoCommonHeadersInterceptor(),
-            refreshingAuthentication,
-            LoggingInterceptor(logBodies: false) { print($0) }
-        ]
+    var defaultProfile: NetworkClientProfile {
+        profile(api: "REST")
     }
 
-    var authentication: (any AuthenticationRefreshing)? { refreshingAuthentication }
+    var graphQLProfile: NetworkClientProfile {
+        profile(api: "GraphQL")
+    }
+
     var observers: [any NetworkObserving] {
         [DemoNetworkObserver(), NetworkMetricsObserver(metrics: networkMetrics)]
     }
@@ -144,6 +141,19 @@ final class AppNetworkClient: SharedNetworkClient, @unchecked Sendable {
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         return decoder
+    }
+
+    private func profile(api: String) -> NetworkClientProfile {
+        NetworkClientProfile(
+            interceptors: [
+                RequestIDInterceptor(),
+                DemoCommonHeadersInterceptor(api: api),
+                refreshingAuthentication,
+                LoggingInterceptor(logBodies: false) { print($0) }
+            ],
+            authentication: refreshingAuthentication,
+            configuration: AppNetworkConfiguration.default
+        )
     }
 }
 
@@ -162,10 +172,13 @@ actor DemoNetworkObserver: NetworkObserving {
 
 /// Demonstrates app-wide request headers configured once on the network client.
 struct DemoCommonHeadersInterceptor: NetworkInterceptor {
+    let api: String
+
     func adapt(_ request: URLRequest) async throws -> URLRequest {
         var request = request
         request.setValue("NetworkingKitDemo", forHTTPHeaderField: "X-Demo-Client")
         request.setValue("iOS/macOS", forHTTPHeaderField: "X-Client-Platform")
+        request.setValue(api, forHTTPHeaderField: "X-Demo-API")
         return request
     }
 }
@@ -245,6 +258,7 @@ struct FetchCharacterProfileRequest: AppNetworkRequest, GraphQLRequest {
     private let id: String
 
     init(id: String) { self.id = id }
+    var clientProfile: NetworkClientProfile { client.graphQLProfile }
     var query: String {
         """
         query Character($id: ID!) {

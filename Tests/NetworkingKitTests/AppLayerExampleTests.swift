@@ -32,7 +32,7 @@ private final class AppNetworkClient: SharedNetworkClient, @unchecked Sendable {
     static let shared = AppNetworkClient()
     let baseURL = URL(string: "https://api.example.com")!
     let session: URLSession = .shared
-    let interceptors: [any NetworkInterceptor] = []
+    let defaultProfile = NetworkClientProfile()
     private init() {}
 }
 

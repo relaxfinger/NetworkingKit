@@ -51,7 +51,8 @@ public actor TokenRefreshCoordinator {
 
 /// Adds bearer credentials and safely refreshes them after a `401 Unauthorized` response.
 ///
-/// Register this instance in both `NetworkClient.interceptors` and `NetworkClient.authentication`.
+/// Register this instance in both `NetworkClientProfile.interceptors` and
+/// `NetworkClientProfile.authentication`.
 /// NetworkingKit replays an unauthorized request at most once after a successful refresh.
 public final class RefreshingAuthInterceptor: NetworkInterceptor, AuthenticationRefreshing, @unchecked Sendable {
     private let provider: any AccessTokenProviding

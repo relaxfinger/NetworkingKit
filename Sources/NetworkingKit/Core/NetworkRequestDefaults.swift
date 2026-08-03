@@ -27,9 +27,12 @@ private final class TaskBox: @unchecked Sendable {
     func cancel() { lock.lock(); task?.cancel(); lock.unlock() }
 }
 
-private func performRequest<Request: NetworkRequest>(_ request: Request) async throws -> Request.Response {
+private func performRequest<Request: NetworkRequest>(
+    _ request: Request,
+    profile: NetworkClientProfile
+) async throws -> Request.Response {
     var urlRequest = try request.buildURLRequest()
-    do { for interceptor in request.client.interceptors { urlRequest = try await interceptor.adapt(urlRequest) } }
+    do { for interceptor in profile.interceptors { urlRequest = try await interceptor.adapt(urlRequest) } }
     catch { throw NetworkError.interceptorFailed(message: error.localizedDescription) }
 
     let requestID = urlRequest.value(forHTTPHeaderField: "X-Request-ID") ?? UUID().uuidString
@@ -39,7 +42,7 @@ private func performRequest<Request: NetworkRequest>(_ request: Request) async t
     if let controller = request.client.executionController { await controller.acquire() }
 
     do {
-        let result = try await executeAdaptedRequest(request, urlRequest: urlRequest)
+        let result = try await executeAdaptedRequest(request, profile: profile, urlRequest: urlRequest)
         if let controller = request.client.executionController { await controller.release() }
         await notify(
             .finished(context, NetworkRequestOutcome(statusCode: result.statusCode, duration: Date().timeIntervalSince(startedAt), error: nil)),
@@ -70,6 +73,7 @@ private func notify<Client: NetworkClient>(_ event: NetworkEvent, for client: Cl
 
 private func executeAdaptedRequest<Request: NetworkRequest>(
     _ request: Request,
+    profile: NetworkClientProfile,
     urlRequest: URLRequest
 ) async throws -> (response: Request.Response, statusCode: Int?) {
 
@@ -83,7 +87,7 @@ private func executeAdaptedRequest<Request: NetworkRequest>(
     let transformedData: Data
     do {
         var currentData = data
-        for interceptor in request.client.interceptors.reversed() {
+        for interceptor in profile.interceptors.reversed() {
             currentData = try await interceptor.transform(response: response, data: currentData)
         }
         transformedData = currentData
@@ -107,8 +111,9 @@ private func executeAdaptedRequest<Request: NetworkRequest>(
 }
 
 public extension NetworkRequest {
+    var clientProfile: NetworkClientProfile { client.defaultProfile }
     var headers: [String: String]? { nil }
-    var timeoutInterval: TimeInterval { client.configuration.timeoutInterval }
+    var timeoutInterval: TimeInterval { clientProfile.configuration.timeoutInterval }
 
     func buildURLRequest() throws -> URLRequest {
         guard var components = URLComponents(url: client.baseURL.appendingPathComponent(path), resolvingAgainstBaseURL: false) else { throw NetworkError.invalidURL }
@@ -130,15 +135,16 @@ public extension NetworkRequest {
     }
 
     func execute() async throws -> Response {
-        let retryPolicy = client.configuration.retryPolicy
+        let profile = clientProfile
+        let retryPolicy = profile.configuration.retryPolicy
         var hasRefreshedCredentials = false
         var attempt = NetworkConstants.Retry.firstAttempt
         while attempt <= retryPolicy.maxAttempts {
-            do { return try await performRequest(self) }
+            do { return try await performRequest(self, profile: profile) }
             catch let error as NetworkError {
                 if case .unauthorized = error,
                    !hasRefreshedCredentials,
-                   let authentication = client.authentication {
+                   let authentication = profile.authentication {
                     hasRefreshedCredentials = true
                     do {
                         guard try await authentication.refreshCredentials() else {

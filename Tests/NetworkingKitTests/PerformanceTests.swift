@@ -33,7 +33,7 @@ private struct BenchmarkUser: Codable, Sendable { let id: String; let name: Stri
 private final class BenchmarkClient: NetworkClient, @unchecked Sendable {
     let baseURL = URL(string: "https://api.example.com")!
     let session = URLSession(configuration: .ephemeral)
-    let interceptors: [any NetworkInterceptor] = []
+    let defaultProfile = NetworkClientProfile()
 }
 
 private struct BenchmarkRequest: RestfulRequest {

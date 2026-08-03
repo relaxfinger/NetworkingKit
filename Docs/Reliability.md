@@ -46,6 +46,7 @@ final class ContentAPIClient: SharedNetworkClient, @unchecked Sendable {
     static let shared = ContentAPIClient()
     let baseURL = URL(string: "https://content.example.com")!
     let session = URLSession(configuration: .default)
+    let defaultProfile = NetworkClientProfile()
 
     private let circuits = CircuitBreakerRegistry(
         failureThreshold: 5,

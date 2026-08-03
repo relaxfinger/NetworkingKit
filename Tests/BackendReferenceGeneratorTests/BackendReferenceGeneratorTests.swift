@@ -18,7 +18,9 @@ final class BackendReferenceGeneratorTests: XCTestCase {
             final class AccountAPIClient: SharedNetworkClient {
                 let baseURL: URL = URL(string: "https://api.example.com")!
                 let session = URLSession.shared
-                let configuration: NetworkConfiguration = NetworkConfiguration(timeoutInterval: AccountConstants.timeout)
+                let defaultProfile = NetworkClientProfile(
+                    configuration: NetworkConfiguration(timeoutInterval: AccountConstants.timeout)
+                )
             }
 
             protocol AccountRequest: NetworkRequest where Client == AccountAPIClient {}
@@ -54,6 +56,42 @@ final class BackendReferenceGeneratorTests: XCTestCase {
         XCTAssertEqual(endpoints.first?.parameters, ["userID: String"])
     }
 
+    func testParsesConfigurationFromMultilineDefaultProfile() {
+        let source = """
+        final class APIClient: SharedNetworkClient {
+            let baseURL = URL(string: "https://api.example.com")!
+            let session = URLSession.shared
+            let defaultProfile = NetworkClientProfile(
+                interceptors: [RequestIDInterceptor()],
+                authentication: nil,
+                configuration: NetworkConfiguration(
+                    timeoutInterval: 9,
+                    retryPolicy: RetryPolicy(maxAttempts: 4)
+                )
+            )
+        }
+        """
+
+        let servers = BackendReferenceGenerator.parseServers([
+            document("Networking/APIClient.swift", source)
+        ])
+
+        XCTAssertTrue(
+            BackendReferenceGenerator.defaultProfileConfiguration(in: source)
+                .contains("timeoutInterval: 9")
+        )
+
+        XCTAssertEqual(
+            servers.first?.configuration.first(where: { $0.0 == "timeoutInterval" })?.1,
+            "9"
+        )
+        XCTAssertTrue(
+            servers.first?.configuration
+                .first(where: { $0.0 == "retryPolicy" })?.1
+                .contains("maxAttempts: 4") == true
+        )
+    }
+
     func testResolvesEndpointURLSplitFromStaticConfiguration() {
         let documents = [
             document("BandUpSpeaking/Networking/BandUpAPIClient.swift", """
@@ -65,7 +103,9 @@ final class BackendReferenceGeneratorTests: XCTestCase {
 
                 let baseURL = BandUpAPIEndpoint.feedbackBaseURL
                 let session = URLSession.shared
-                let configuration = NetworkConfiguration(timeoutInterval: BandUpAPIEndpoint.timeoutSeconds)
+                let defaultProfile = NetworkClientProfile(
+                    configuration: NetworkConfiguration(timeoutInterval: BandUpAPIEndpoint.timeoutSeconds)
+                )
             }
 
             nonisolated protocol BandUpAPIRequest: NetworkRequest where Client == BandUpAPIClient {}
@@ -143,7 +183,9 @@ final class BackendReferenceGeneratorTests: XCTestCase {
             nonisolated final class BandUpAPIClient: SharedNetworkClient, @unchecked Sendable {
                 let baseURL = BandUpAPIEndpoint.feedbackBaseURL
                 let session = URLSession.shared
-                let configuration = NetworkConfiguration(timeoutInterval: BandUpAPIEndpoint.timeoutSeconds)
+                let defaultProfile = NetworkClientProfile(
+                    configuration: NetworkConfiguration(timeoutInterval: BandUpAPIEndpoint.timeoutSeconds)
+                )
             }
 
             nonisolated protocol BandUpAPIRequest: NetworkRequest where Client == BandUpAPIClient {}
@@ -237,7 +279,7 @@ final class BackendReferenceGeneratorTests: XCTestCase {
             struct StoreAPIClient: NetworkClient {
                 let baseURL = URL(string: "https://store.example.com")!
                 let session = URLSession.shared
-                let configuration = NetworkConfiguration.default
+                let defaultProfile = NetworkClientProfile()
             }
 
             protocol StoreRequest: NetworkRequest where Client == StoreAPIClient {}

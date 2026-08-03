@@ -2,6 +2,21 @@
 
 All notable changes to NetworkingKit are documented in this file.
 
+## 2.5.0 - 2026-08-03
+
+### Added
+
+- Add `NetworkClientProfile` so one client and base URL can expose multiple interceptor, authentication-refresh, timeout, retry, and error-localization behaviors.
+- Add `NetworkRequest.clientProfile`, defaulting to the client's `defaultProfile`, for concurrency-safe profile selection by App-level request families.
+- Add profile isolation, retry, authentication refresh, public API, and multiline backend-reference generator tests.
+
+### Changed
+
+- Make `defaultProfile` part of the core `NetworkClient` contract; move client-level interceptors, authentication, and `NetworkConfiguration` into profiles.
+- Update the Demo to run REST and GraphQL through different profiles on one client.
+- Update the backend reference generator to read configuration from multiline `NetworkClientProfile` declarations.
+- Update English and Simplified Chinese READMEs and production guides for the one-base-URL, one-client model.
+
 ## 2.4.10 - 2026-08-03
 
 ### Fixed

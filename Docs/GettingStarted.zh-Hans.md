@@ -2,11 +2,11 @@
 
 [English](GettingStarted.md) · [文档索引](README.zh-Hans.md)
 
-本篇建立最小但可持续维护的网络层：一个后端 Client、一个 App 级请求协议、REST 与 GraphQL 请求，以及两种调用方式。
+本篇建立最小但可持续维护的网络层：一个 Base URL Client、一个 App 级请求协议、REST 与 GraphQL 请求，以及两种调用方式。
 
-## 1. 按后端边界建模
+## 1. 按 Base URL 边界建模
 
-每个真正不同的后端服务创建一个 `NetworkClient` 类型。账号、内容、支付服务可能有不同 Base URL、凭证、Session 配置或安全策略。生产、预发、测试是同一个后端 Client 的配置，不是不同的 Request 体系。
+一个 Base URL 对应一个 `NetworkClient`。账号、内容、支付服务使用不同 Base URL 时创建不同 Client；同一地址下凭证或共享请求策略不同，使用 Client Profile。生产、预发、测试仍是同一 Client 类型的不同配置。
 
 ```swift
 import Foundation
@@ -29,14 +29,16 @@ final class AccountAPIClient: SharedNetworkClient, @unchecked Sendable {
 
     let baseURL: URL
     let session: URLSession
-    let configuration: NetworkConfiguration
+    let defaultProfile: NetworkClientProfile
 
     init(environment: AccountEnvironment) {
         baseURL = environment.baseURL
         session = URLSession(configuration: .default)
-        configuration = NetworkConfiguration(
-            timeoutInterval: 15,
-            retryPolicy: RetryPolicy(maxAttempts: 3)
+        defaultProfile = NetworkClientProfile(
+            configuration: NetworkConfiguration(
+                timeoutInterval: 15,
+                retryPolicy: RetryPolicy(maxAttempts: 3)
+            )
         )
     }
 
@@ -62,7 +64,7 @@ extension AccountRequest {
 }
 ```
 
-若有第二个后端，定义第二个 Client 与请求协议。这样可以在编译期避免账号接口误用内容服务的 Client。
+Base URL 不同时定义另一个 Client 与请求协议；同一地址下共享行为不同，保留当前 Client 并选择另一个 [Client Profile](ClientProfiles.zh-Hans.md)。
 
 ## 3. 定义 REST 请求
 

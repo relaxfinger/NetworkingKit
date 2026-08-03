@@ -7,6 +7,7 @@
 | 文档 | 适用情况 |
 | --- | --- |
 | [快速入门](GettingStarted.zh-Hans.md) | 按后端组织 Client、定义强类型 REST/GraphQL 请求，或使用 Combine。 |
+| [Client Profile](ClientProfiles.zh-Hans.md) | 同一 Base URL 下需要不同公共 Header、认证、超时或重试行为。 |
 | [缓存](Caching.zh-Hans.md) | 优化用户等待、设计离线模式，或与后端约定 HTTP 缓存 Header。 |
 | [拦截器](Interceptors.zh-Hans.md) | 一次配置公共 Header、签名、日志、响应信封或测试专用行为。 |
 | [认证](Authentication.zh-Hans.md) | 添加 Bearer Token，并在收到 `401` 后安全刷新过期凭证。 |
@@ -19,7 +20,7 @@
 ## 推荐接入顺序
 
 1. 先按[快速入门](GettingStarted.zh-Hans.md)创建一个 Client 和一个 REST 请求。
-2. 通过[拦截器](Interceptors.zh-Hans.md)加入公共 Header 与日志。
+2. 在默认 Profile 中通过[拦截器](Interceptors.zh-Hans.md)加入公共 Header 与日志。
 3. 后端使用 Bearer 凭证时，再加入[认证](Authentication.zh-Hans.md)。
 4. 可复用的 `GET` 数据再接入[缓存](Caching.zh-Hans.md)，并与后端约定缓存语义。
 5. 业务量和运维要求增长后，加入[稳定性](Reliability.zh-Hans.md)与[可观测性](Observability.zh-Hans.md)。
@@ -27,7 +28,7 @@
 
 ## 重要边界
 
-- `NetworkClient` 对应一个后端边界，不等于整个 App 只能有一个 Client。
+- `NetworkClient` 对应一个 Base URL；同一地址下不同的共享行为应放入 Client Profile。
 - Request 负责一个接口的 path、method、query、body 与响应类型。
 - 拦截器负责共享的请求/响应逻辑，不应在每个 Request 中重复实现。
 - Transport 组合缓存、熔断等传输机制。

@@ -7,6 +7,7 @@ These guides are the reference for production use. Read them in the order below 
 | Guide | Use it when you need to… |
 | --- | --- |
 | [Getting started](GettingStarted.md) | Organize clients by backend, define typed REST/GraphQL requests, or use Combine. |
+| [Client profiles](ClientProfiles.md) | Use different shared headers, authentication, timeout, or retry behavior on one base URL. |
 | [Caching](Caching.md) | Improve perceived performance, control offline behavior, or coordinate HTTP cache headers with a backend. |
 | [Interceptors](Interceptors.md) | Add headers, signing, logging, a response envelope, or test-specific request behavior once. |
 | [Authentication](Authentication.md) | Attach bearer tokens and refresh an expired token safely after a `401`. |
@@ -19,7 +20,7 @@ These guides are the reference for production use. Read them in the order below 
 ## Recommended adoption path
 
 1. Follow **Getting started** to create one client and one REST request.
-2. Add **Interceptors** for client-wide headers and logging.
+2. Add **Interceptors** to the default profile for shared headers and logging.
 3. Add **Authentication** when the backend uses bearer credentials.
 4. Add **Caching** for reusable `GET` data; agree cache semantics with the backend.
 5. Add **Reliability** and **Observability** as traffic and operational requirements grow.
@@ -27,7 +28,7 @@ These guides are the reference for production use. Read them in the order below 
 
 ## Important boundaries
 
-- A `NetworkClient` represents one backend boundary, not necessarily the entire App.
+- A `NetworkClient` represents one base URL. Different shared behavior on that URL belongs in client profiles.
 - A request describes an endpoint's path, method, query, body, and response type.
 - Interceptors own shared request/response behavior; do not repeat it in every request.
 - Transports compose mechanics such as caching and circuit breaking.

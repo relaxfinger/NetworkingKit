@@ -2,11 +2,11 @@
 
 [简体中文](GettingStarted.zh-Hans.md) · [Documentation index](README.md)
 
-This guide creates the smallest maintainable networking layer: a client for one backend, an App-level request protocol, REST and GraphQL requests, and two ways to execute them.
+This guide creates the smallest maintainable networking layer: a client for one base URL, an App-level request protocol, REST and GraphQL requests, and two ways to execute them.
 
-## 1. Model backend boundaries
+## 1. Model base URL boundaries
 
-Create one `NetworkClient` type per genuinely different backend service. Account, content, and payments may need different base URLs, credentials, session configuration, or security policy. Production, staging, and test are configurations of the same backend client, not different request families.
+Create one `NetworkClient` for one base URL. Account, content, and payments need separate clients when they use different base URLs. Different credentials or shared request policies on the same URL belong in client profiles. Production, staging, and test remain configurations of the same client type.
 
 ```swift
 import Foundation
@@ -29,14 +29,16 @@ final class AccountAPIClient: SharedNetworkClient, @unchecked Sendable {
 
     let baseURL: URL
     let session: URLSession
-    let configuration: NetworkConfiguration
+    let defaultProfile: NetworkClientProfile
 
     init(environment: AccountEnvironment) {
         baseURL = environment.baseURL
         session = URLSession(configuration: .default)
-        configuration = NetworkConfiguration(
-            timeoutInterval: 15,
-            retryPolicy: RetryPolicy(maxAttempts: 3)
+        defaultProfile = NetworkClientProfile(
+            configuration: NetworkConfiguration(
+                timeoutInterval: 15,
+                retryPolicy: RetryPolicy(maxAttempts: 3)
+            )
         )
     }
 
@@ -62,7 +64,7 @@ extension AccountRequest {
 }
 ```
 
-For a second backend, define another client and another request protocol. This is compile-time protection against sending an account endpoint through a content client.
+For a different base URL, define another client and another request protocol. For different shared behavior on this base URL, keep the same client and select another [client profile](ClientProfiles.md).
 
 ## 3. Define REST requests
 

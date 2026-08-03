@@ -8,7 +8,7 @@
 
 import Foundation
 
-/// The default request policy for a `NetworkClient` instance.
+/// The timeout, retry, and error-localization policy for a `NetworkClientProfile`.
 ///
 /// Apps can create independent configurations for production, testing, and staging environments.
 public struct NetworkConfiguration: Sendable {

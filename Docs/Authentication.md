@@ -2,7 +2,7 @@
 
 [简体中文](Authentication.zh-Hans.md) · [Documentation index](README.md)
 
-Authentication is shared backend behavior, so it belongs on the client—not in every request. NetworkingKit provides `AuthInterceptor` for a token that is simply read, and `RefreshingAuthInterceptor` for expiring bearer tokens.
+Authentication is shared request behavior, so it belongs in a client profile, not in every request. NetworkingKit provides `AuthInterceptor` for a token that is simply read, and `RefreshingAuthInterceptor` for expiring bearer tokens.
 
 ## Static or externally refreshed token
 
@@ -13,7 +13,7 @@ let authentication = AuthInterceptor(tokenProvider: {
     KeychainStore.shared.accessToken
 })
 
-var interceptors: [any NetworkInterceptor] { [authentication] }
+let defaultProfile = NetworkClientProfile(interceptors: [authentication])
 ```
 
 The closure should return `nil` when no token exists; the request then proceeds without an `Authorization` header.
@@ -48,15 +48,16 @@ final class AccountAPIClient: SharedNetworkClient, @unchecked Sendable {
 
     private let refreshingAuth = RefreshingAuthInterceptor(provider: TokenStore.shared)
 
-    var interceptors: [any NetworkInterceptor] {
-        [RequestIDInterceptor(), refreshingAuth]
-    }
-
-    var authentication: (any AuthenticationRefreshing)? { refreshingAuth }
+    lazy var defaultProfile = NetworkClientProfile(
+        interceptors: [RequestIDInterceptor(), refreshingAuth],
+        authentication: refreshingAuth
+    )
 }
 ```
 
 When an attempt receives `401 Unauthorized`, concurrent requests share one refresh operation. A request is replayed at most once after a successful refresh; failed refreshes become `NetworkError.authenticationRefreshFailed`. This prevents duplicate refresh traffic and infinite retry loops.
+
+An authentication or token-refresh endpoint on the same base URL should select a profile without bearer refresh. This prevents the refresh call from recursively entering the authenticated request path. See [Client profiles](ClientProfiles.md).
 
 ## Product and security rules
 
