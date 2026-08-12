@@ -3,9 +3,6 @@ name: CI
 on:
   pull_request:
     branches: [main]
-    paths-ignore:
-      - "**/*.md"
-      - "Docs/**"
   schedule:
     - cron: "41 20 * * 1"
   workflow_dispatch:
@@ -18,8 +15,35 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  changes:
+    name: Detect relevant changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      run-verification: ${{ steps.filter.outputs.run-verification }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check for non-documentation changes
+        id: filter
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [[ "$EVENT_NAME" != "pull_request" ]]; then
+            echo "run-verification=true" >> "$GITHUB_OUTPUT"
+          elif git diff --quiet "$BASE_SHA" "$HEAD_SHA" -- . ':(exclude)**/*.md' ':(exclude)Docs/**'; then
+            echo "run-verification=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run-verification=true" >> "$GITHUB_OUTPUT"
+          fi
+
   verify:
     name: Test and build
+    needs: changes
+    if: needs.changes.outputs.run-verification == 'true'
     runs-on: macos-latest
     timeout-minutes: 15
     steps:
@@ -44,3 +68,23 @@ jobs:
           -configuration Debug
           build
           CODE_SIGNING_ALLOWED=NO
+
+  gate:
+    name: CI gate
+    needs: [changes, verify]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require verification when relevant
+        env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          RUN_VERIFICATION: ${{ needs.changes.outputs.run-verification }}
+          VERIFY_RESULT: ${{ needs.verify.result }}
+        run: |
+          [[ "$CHANGES_RESULT" == "success" ]]
+          if [[ "$RUN_VERIFICATION" == "true" ]]; then
+            [[ "$VERIFY_RESULT" == "success" ]]
+          else
+            [[ "$VERIFY_RESULT" == "skipped" ]]
+          fi
