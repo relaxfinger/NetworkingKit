@@ -2,40 +2,45 @@ name: CI
 
 on:
   pull_request:
-  push:
     branches: [main]
+    paths-ignore:
+      - "**/*.md"
+      - "Docs/**"
+  schedule:
+    - cron: "41 20 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  test:
+  verify:
+    name: Test and build
     runs-on: macos-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - run: swift test
       - run: swift build -c release
-
-  public-api-compatibility:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-      - run: swift test --filter PublicAPICompatibilityTests
-
-  demo-build:
-    runs-on: macos-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - scheme: NetworkingKitDemo-iOS
-            sdk: iphonesimulator
-          - scheme: NetworkingKitDemo-macOS
-            sdk: macosx
-    steps:
-      - uses: actions/checkout@v4
-      - run: >-
+      - name: Build iOS demo
+        run: >-
           xcodebuild
           -project Examples/NetworkingKitDemo/NetworkingKitDemo.xcodeproj
-          -scheme ${{ matrix.scheme }}
-          -sdk ${{ matrix.sdk }}
+          -scheme NetworkingKitDemo-iOS
+          -sdk iphonesimulator
+          -configuration Debug
+          build
+          CODE_SIGNING_ALLOWED=NO
+      - name: Build macOS demo
+        run: >-
+          xcodebuild
+          -project Examples/NetworkingKitDemo/NetworkingKitDemo.xcodeproj
+          -scheme NetworkingKitDemo-macOS
+          -sdk macosx
           -configuration Debug
           build
           CODE_SIGNING_ALLOWED=NO
