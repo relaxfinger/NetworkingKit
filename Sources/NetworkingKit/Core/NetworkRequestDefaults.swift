@@ -79,7 +79,16 @@ private func executeAdaptedRequest<Request: NetworkRequest>(
 
     let data: Data
     let response: URLResponse
-    do { (data, response) = try await request.client.transport.send(urlRequest) }
+    do {
+        if let transport = request.client.transport as? any RequestCachePolicyTransport {
+            (data, response) = try await transport.send(
+                urlRequest,
+                cachePolicy: request.cachePolicy
+            )
+        } else {
+            (data, response) = try await request.client.transport.send(urlRequest)
+        }
+    }
     catch is CancellationError { throw NetworkError.cancelled }
     catch let error as URLError where error.code == .cancelled { throw NetworkError.cancelled }
     catch { throw NetworkError.transport(message: error.localizedDescription) }
@@ -114,6 +123,7 @@ public extension NetworkRequest {
     var clientProfile: NetworkClientProfile { client.defaultProfile }
     var headers: [String: String]? { nil }
     var timeoutInterval: TimeInterval { clientProfile.configuration.timeoutInterval }
+    var cachePolicy: NetworkCachePolicy? { nil }
 
     func buildURLRequest() throws -> URLRequest {
         guard var components = URLComponents(url: client.baseURL.appendingPathComponent(path), resolvingAgainstBaseURL: false) else { throw NetworkError.invalidURL }

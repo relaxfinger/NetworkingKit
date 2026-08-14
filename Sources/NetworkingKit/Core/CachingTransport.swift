@@ -17,6 +17,18 @@ public enum NetworkCachePolicy: Sendable, Equatable {
     case returnCacheElseLoad
     /// Use a cached response and fail when no entry exists; suitable for offline mode.
     case returnCacheDontLoad
+    /// Return a fresh response normally. When a cached response expired no more than
+    /// `maxStale` seconds ago, return it immediately and revalidate it in the background.
+    case staleWhileRevalidate(maxStale: TimeInterval)
+}
+
+/// A transport that can apply a cache policy selected by an individual request.
+public protocol RequestCachePolicyTransport: NetworkTransport {
+    /// Sends a request using `cachePolicy`, or the transport's default when it is `nil`.
+    func send(
+        _ request: URLRequest,
+        cachePolicy: NetworkCachePolicy?
+    ) async throws -> (Data, URLResponse)
 }
 
 /// Stores cached transport responses.
@@ -199,7 +211,7 @@ public struct DiskResponseCacheStatistics: Sendable, Equatable {
 }
 
 /// Wraps another transport with a cache for successful GET responses.
-public struct CachingTransport: NetworkTransport {
+public struct CachingTransport: RequestCachePolicyTransport {
     public let upstream: any NetworkTransport
     public let cache: any NetworkResponseCaching
     public let policy: NetworkCachePolicy
@@ -213,6 +225,14 @@ public struct CachingTransport: NetworkTransport {
     }
 
     public func send(_ request: URLRequest) async throws -> (Data, URLResponse) {
+        try await send(request, cachePolicy: nil)
+    }
+
+    public func send(
+        _ request: URLRequest,
+        cachePolicy: NetworkCachePolicy?
+    ) async throws -> (Data, URLResponse) {
+        let policy = cachePolicy ?? self.policy
         let key = cacheKey(for: request)
         let requestDisallowsStorage = request.value(forHTTPHeaderField: "Cache-Control")?.lowercased().contains("no-store") == true
         let cached = request.httpMethod == HTTPMethod.get.rawValue && !requestDisallowsStorage
@@ -222,7 +242,28 @@ public struct CachingTransport: NetworkTransport {
         guard policy != .returnCacheDontLoad else { throw CacheMissError() }
         if policy == .returnCacheElseLoad, let cached, cached.isFresh, !CacheControl.requiresRevalidation(cached.headers) { return (cached.data, cached.makeResponse()) }
 
+        if case let .staleWhileRevalidate(maxStale) = policy, let cached {
+            if cached.isFresh, !CacheControl.requiresRevalidation(cached.headers) {
+                return (cached.data, cached.makeResponse())
+            }
+            if cached.staleAge <= max(0, maxStale) {
+                revalidateInBackground(request, cached: cached, key: key)
+                return (cached.data, cached.makeResponse())
+            }
+        }
+
+        return try await load(request, cached: cached, key: key)
+    }
+
+    private func load(
+        _ request: URLRequest,
+        cached: CachedHTTPResponse?,
+        key: String
+    ) async throws -> (Data, URLResponse) {
         var request = request
+        let requestDisallowsStorage = request.value(forHTTPHeaderField: "Cache-Control")?
+            .lowercased()
+            .contains("no-store") == true
         if let eTag = cached?.eTag { request.setValue(eTag, forHTTPHeaderField: "If-None-Match") }
         let result = try await upstream.send(request)
         if let response = result.1 as? HTTPURLResponse, response.statusCode == 304, let cached {
@@ -237,6 +278,16 @@ public struct CachingTransport: NetworkTransport {
             await cache.store(makeEntry(data: result.0, response: response, request: request, fallbackURL: request.url), for: key)
         }
         return result
+    }
+
+    private func revalidateInBackground(
+        _ request: URLRequest,
+        cached: CachedHTTPResponse,
+        key: String
+    ) {
+        Task {
+            _ = try? await load(request, cached: cached, key: key)
+        }
     }
 
     private func cacheKey(for request: URLRequest) -> String {
@@ -286,6 +337,10 @@ private enum CacheControl {
 }
 
 private extension CachedHTTPResponse {
+    var staleAge: TimeInterval {
+        max(0, Date().timeIntervalSince(expiresAt))
+    }
+
     var variantIdentifier: String {
         varyHeaders.sorted { $0.key < $1.key }.map { "\($0.key.lowercased())=\($0.value)" }.joined(separator: "&")
     }
