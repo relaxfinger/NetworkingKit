@@ -2,6 +2,19 @@
 
 All notable changes to NetworkingKit are documented in this file.
 
+## 2.5.1 - 2026-08-14
+
+### Added
+
+- Add `NetworkRequest.cachePolicy` and `RequestCachePolicyTransport` for request-level cache behavior without creating another client.
+- Add `.staleWhileRevalidate(maxStale:)` to return eligible stale reads immediately and refresh the stored response in the background.
+- Add `RequestCoalescingTransport` with privacy-safe hashed keys to share equivalent concurrent `GET` and `HEAD` attempts while separating authorization and header variants.
+- Add public API compatibility and behavior tests for policy forwarding, stale refreshes, request variants, and non-idempotent bypasses.
+
+### Changed
+
+- Expand English and Simplified Chinese caching documentation with request overrides, transport composition, stale refresh behavior, and concurrent request coalescing.
+
 ## 2.5.0 - 2026-08-03
 
 ### Added

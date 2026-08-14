@@ -9,7 +9,7 @@ NetworkingKit 是面向 iOS、macOS、tvOS 与 watchOS 的原生 Swift 网络库
 - 强类型 REST 与 GraphQL 请求，同时支持 `async/await` 和 Combine。
 - 通过 Client Profile 为同一 Base URL 配置公共 Header、认证、超时、重试和多语言错误。
 - 使用拦截器统一处理 Header、签名、认证、日志、响应信封和测试行为。
-- 支持内存/磁盘 HTTP 缓存、缓存策略、ETag 重新验证、`304`、`Vary` 与离线读取。
+- 支持内存/磁盘 HTTP 缓存、请求级策略、stale-while-revalidate、ETag/`304`、`Vary`、离线读取与并发请求合并。
 - 支持 Token 刷新协调、请求并发限制和按路由熔断。
 - 支持 OSLog、OpenTelemetry 桥接、指标、请求 ID 和证书/公钥 pinning。
 

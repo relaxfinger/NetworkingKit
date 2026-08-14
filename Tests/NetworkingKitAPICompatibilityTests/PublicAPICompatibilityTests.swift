@@ -33,6 +33,12 @@ final class PublicAPICompatibilityTests: XCTestCase {
         )
         let cachedTransport = CachingTransport(upstream: protectedTransport, cache: cache)
         _ = cachedTransport
+        let coalescingTransport = RequestCoalescingTransport(upstream: cachedTransport)
+        _ = coalescingTransport
+        _ = RequestCoalescingKey.default(try restRequest.buildURLRequest())
+        _ = NetworkCachePolicy.staleWhileRevalidate(maxStale: 60)
+        let policyTransport: any RequestCachePolicyTransport = cachedTransport
+        _ = policyTransport
 
         let routeKey = CircuitBreakerRouteKey.hostAndPath(for: try restRequest.buildURLRequest())
         let breaker = await registry.circuit(for: routeKey)

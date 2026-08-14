@@ -34,6 +34,10 @@ public protocol NetworkRequest<Client, Response>: Sendable {
     
     /// The request timeout in seconds. Defaults to the client's configured timeout.
     var timeoutInterval: TimeInterval { get }
+
+    /// Overrides the cache behavior for this request when the client's transport
+    /// supports request-level cache policies. `nil` uses the transport default.
+    var cachePolicy: NetworkCachePolicy? { get }
     
     // MARK: - Execution
     func execute() async throws -> Response

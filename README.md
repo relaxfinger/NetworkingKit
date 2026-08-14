@@ -9,7 +9,7 @@ NetworkingKit is a native Swift networking library for iOS, macOS, tvOS, and wat
 - Typed REST and GraphQL requests with `async/await` and Combine.
 - Client profiles for shared headers, authentication, timeouts, retries, and localized errors on one base URL.
 - Interceptors for headers, signing, authentication, logging, response envelopes, and test behavior.
-- HTTP caching with memory or disk storage, cache policies, ETag revalidation, `304`, `Vary`, and offline reads.
+- HTTP caching with memory or disk storage, per-request policies, stale-while-revalidate, ETag/`304`, `Vary`, offline reads, and concurrent request coalescing.
 - Token refresh coordination, request concurrency limits, and route-scoped circuit breakers.
 - OSLog, OpenTelemetry bridge points, metrics, request IDs, and certificate/public-key pinning.
 

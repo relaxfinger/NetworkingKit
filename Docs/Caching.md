@@ -32,7 +32,9 @@ final class CatalogAPIClient: SharedNetworkClient, @unchecked Sendable {
 
     var transport: any NetworkTransport {
         CachingTransport(
-            upstream: URLSessionTransport(session: session),
+            upstream: RequestCoalescingTransport(
+                upstream: URLSessionTransport(session: session)
+            ),
             cache: cache,
             policy: .returnCacheElseLoad,
             defaultTTL: 5 * 60
@@ -48,8 +50,48 @@ final class CatalogAPIClient: SharedNetworkClient, @unchecked Sendable {
 | `.networkOnly` | Bypasses a cache read and always contacts the upstream; an eligible success can still update the cache | Pull to refresh, current-state screens, diagnostics |
 | `.returnCacheElseLoad` | Returns a fresh entry immediately; a miss, expiry, or `no-cache` entry goes upstream | Default for catalogs, articles, read-only profiles, and configuration |
 | `.returnCacheDontLoad` | Never contacts the network; returns a matching entry even when expired, or throws `CacheMissError` | Explicit offline mode |
+| `.staleWhileRevalidate(maxStale:)` | Returns a fresh entry normally; returns an eligible stale entry immediately and refreshes it in the background | Fast repeat loads where briefly stale content is acceptable |
 
 `returnCacheElseLoad` does not silently fall back to stale data after a failed revalidation. If the product wants offline data, create an offline client/transport composition using the same cache and `.returnCacheDontLoad`, then present a clear empty-state for `CacheMissError`.
+
+## Override one request
+
+`NetworkRequest.cachePolicy` defaults to `nil`, which keeps the `CachingTransport` default. Override it when one endpoint needs a different behavior without creating another client.
+
+```swift
+struct RefreshCatalogRequest: RestfulRequest {
+    typealias Response = Catalog
+    let client = CatalogAPIClient.shared
+    let path = "/catalog"
+    let method = HTTPMethod.get
+    let queryItems: [URLQueryItem]? = nil
+    let body: (any Encodable & Sendable)? = nil
+    let contentType: String? = nil
+
+    let cachePolicy: NetworkCachePolicy? = .networkOnly
+}
+```
+
+Request-level policies apply when the client transport conforms to `RequestCachePolicyTransport`. Both `CachingTransport` and `RequestCoalescingTransport` conform, and a coalescing wrapper forwards the policy to a cache-aware upstream transport.
+
+## Coalesce concurrent reads
+
+`RequestCoalescingTransport` shares one upstream attempt among equivalent concurrent `GET` and `HEAD` requests. Its privacy-safe default key hashes the method, absolute URL, and request headers while excluding request-ID and distributed-tracing headers. Authorization and language variants therefore remain separate.
+
+```swift
+let upstream = RequestCoalescingTransport(
+    upstream: URLSessionTransport(session: session)
+)
+let transport = CachingTransport(upstream: upstream, cache: cache)
+```
+
+Only in-flight requests are shared; completed responses are not retained by this transport. Compose it with `CachingTransport` for reuse after completion. Supply a custom `keyProvider` only when the App has a well-defined response-variant model.
+
+## Use stale-while-revalidate
+
+`.staleWhileRevalidate(maxStale:)` returns an expired matching entry immediately when it is within the allowed stale window. NetworkingKit then revalidates the entry in an unstructured background task. An ETag is sent as `If-None-Match`, and either a `304` or a new successful response updates the cache for the next read. When no entry exists or it is older than `maxStale`, the caller waits for the upstream response.
+
+Place `RequestCoalescingTransport` directly upstream of the cache to prevent simultaneous stale reads from creating duplicate revalidations. Background revalidation is best-effort and does not replace an explicit `.networkOnly` refresh when the UI must receive the fresh model in the current interaction.
 
 ## Coordinate HTTP semantics with the backend
 
@@ -103,4 +145,7 @@ The built-in caches expose `removeAll()` intentionally. If a product needs URL- 
 - An expired ETag entry sends `If-None-Match` and handles `304`.
 - Different `Vary: Accept-Language` values do not share a response.
 - Offline mode returns a matching cached value and reports `CacheMissError` otherwise.
+- A request-level `.networkOnly` override bypasses a fresh cache and updates it.
+- Stale-while-revalidate returns promptly and refreshes the stored response.
+- Equivalent concurrent reads share one upstream attempt, while auth/header variants remain separate.
 - Logout removes user-scoped persisted entries.
