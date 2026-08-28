@@ -17,7 +17,7 @@ let observers: [any NetworkObserving] = [
 ]
 ```
 
-将 `RequestIDInterceptor()` 注册到 `interceptors`，将上面的数组赋给 Client 的 `observers`。Observer 是异步的，应转发数据而不阻塞请求完成。
+将 `RequestIDInterceptor()` 注册到 `interceptors`，将上面的数组赋给 Client 的 `observers`。NetworkingKit 会等待每个 Observer 回调完成。回调应保持简短，并把耗时的导出工作转交给 App 管理的缓冲区或任务。
 
 ## 聚合指标
 

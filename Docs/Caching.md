@@ -136,7 +136,7 @@ func signOut() async {
 }
 ```
 
-The built-in caches expose `removeAll()` intentionally. If a product needs URL- or entity-specific invalidation after writes, implement `NetworkResponseCaching` with the appropriate index and invalidation rules. Do not cache tokens, one-time secrets, payment data, or any data that cannot be safely removed on logout.
+`DiskResponseCache` exposes `removeAll()` for clearing its persistent entries. If a product needs to clear `InMemoryResponseCache`, or invalidate entries by URL or entity after writes, implement `NetworkResponseCaching` with the required lifecycle and index. Do not cache tokens, one-time secrets, payment data, or any data that cannot be safely removed on logout.
 
 ## Test cases to cover
 

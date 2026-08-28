@@ -136,7 +136,7 @@ func signOut() async {
 }
 ```
 
-内置缓存有意只提供 `removeAll()`。写操作后若产品需要按 URL 或实体精确失效，请实现带索引和失效规则的 `NetworkResponseCaching`。不要缓存 Token、一次性密钥、支付数据或登出后无法安全删除的数据。
+`DiskResponseCache` 提供 `removeAll()`，用于清空持久化条目。如果产品需要清空 `InMemoryResponseCache`，或在写操作后按 URL 或实体失效，请实现具备所需生命周期和索引的 `NetworkResponseCaching`。不要缓存 Token、一次性密钥、支付数据或登出后无法安全删除的数据。
 
 ## 应覆盖的测试
 

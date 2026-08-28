@@ -16,6 +16,8 @@ public protocol ServerTrustEvaluating: Sendable {
 }
 
 /// Pins leaf certificate DER data for selected hosts.
+///
+/// Hosts absent from `pinnedCertificates` pass this evaluator without pin validation.
 public struct CertificatePinningEvaluator: ServerTrustEvaluating {
     public let pinnedCertificates: [String: Set<Data>]
     public init(pinnedCertificates: [String: Set<Data>]) { self.pinnedCertificates = pinnedCertificates }
@@ -28,6 +30,7 @@ public struct CertificatePinningEvaluator: ServerTrustEvaluating {
 
 /// Pins SHA-256 hashes of leaf public-key bytes for selected hosts.
 ///
+/// Hosts absent from `pinnedHashes` pass this evaluator without pin validation.
 /// Register both current and backup pins to support certificate rotation without an outage.
 public struct PublicKeyHashPinningEvaluator: ServerTrustEvaluating {
     public let pinnedHashes: [String: Set<Data>]

@@ -4,7 +4,7 @@ Thank you for helping improve NetworkingKit.
 
 ## Development setup
 
-- Xcode with Swift 6.0 or later.
+- Xcode with Swift 6.1 or later.
 - iOS 17 and macOS 14 deployment targets.
 
 Run the package tests before opening a pull request:

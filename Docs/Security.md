@@ -16,7 +16,7 @@ let delegate = ServerTrustSessionDelegate(evaluator: evaluator)
 let session = URLSession(configuration: .default, delegate: delegate, delegateQueue: nil)
 ```
 
-Use a dedicated session for the backend that needs pinning. Hosts without pins use normal system handling through the evaluator. Keep at least the active and next certificate pins during rotation.
+Use a dedicated session for the backend that needs pinning. The built-in evaluators return `true` for a host that has no configured pins, so include pins for every host that the session can reach. Keep at least the active and next certificate pins during rotation.
 
 ## Public-key hash pinning
 
@@ -39,5 +39,6 @@ Pins are `Data` values. Derive and verify them in a controlled build/release pro
 - Monitor pinning failures separately from ordinary transport errors.
 - Define an emergency release process for a lost or compromised pin.
 - Keep pinning scoped to the backend session that requires it.
+- Configure pins for every host that the pinned session can reach.
 
 Pinning strengthens one part of transport trust; it does not replace HTTPS, secure token storage, request authorization, input validation, or privacy review.

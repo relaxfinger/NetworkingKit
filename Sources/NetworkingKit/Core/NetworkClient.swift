@@ -26,7 +26,9 @@ public protocol NetworkClient: AnyObject, Sendable {
     /// The behavior used by requests that do not select another client profile.
     var defaultProfile: NetworkClientProfile { get }
 
-    /// Observers that receive non-blocking lifecycle events for every transport attempt.
+    /// Observers that receive lifecycle events for every transport attempt.
+    ///
+    /// Each callback is awaited before request execution continues.
     var observers: [any NetworkObserving] { get }
 
     /// An optional controller for limiting concurrent transport attempts.

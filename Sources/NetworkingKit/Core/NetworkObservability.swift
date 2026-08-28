@@ -42,7 +42,7 @@ public enum NetworkEvent: Sendable {
 
 /// Receives network lifecycle events without coupling NetworkingKit to a telemetry vendor.
 public protocol NetworkObserving: Sendable {
-    /// Records a network lifecycle event.
+    /// Records a network lifecycle event before request execution continues.
     func record(_ event: NetworkEvent) async
 }
 
