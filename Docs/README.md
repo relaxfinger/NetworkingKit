@@ -34,4 +34,4 @@ These guides are the reference for production use. Read them in the order below 
 - Transports compose mechanics such as caching and circuit breaking.
 - App code owns product decisions such as which data can be stored offline and how errors appear to users.
 
-Every guide uses Swift 6 and the package's minimum platform versions: iOS 17, macOS 14, tvOS 17, and watchOS 10.
+Every guide uses Swift 6.1 and the package's minimum platform versions: iOS 17, macOS 14, tvOS 17, and watchOS 10.

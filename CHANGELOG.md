@@ -14,6 +14,7 @@ All notable changes to NetworkingKit are documented in this file.
 ### Changed
 
 - Expand English and Simplified Chinese caching documentation with request overrides, transport composition, stale refresh behavior, and concurrent request coalescing.
+- Align package requirements, examples, cache lifecycle, observer execution, and pinning guidance with the public API.
 
 ## 2.5.0 - 2026-08-03
 

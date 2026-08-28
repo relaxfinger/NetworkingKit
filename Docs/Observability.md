@@ -17,7 +17,7 @@ let observers: [any NetworkObserving] = [
 ]
 ```
 
-Register `RequestIDInterceptor()` in `interceptors` and this array in the client's `observers` property. Observers are asynchronous, so they should forward data without blocking request completion.
+Register `RequestIDInterceptor()` in `interceptors` and this array in the client's `observers` property. NetworkingKit awaits each observer callback. Keep callbacks short, and forward slow export work to an App-owned buffer or task.
 
 ## Aggregate metrics
 

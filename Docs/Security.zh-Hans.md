@@ -16,7 +16,7 @@ let delegate = ServerTrustSessionDelegate(evaluator: evaluator)
 let session = URLSession(configuration: .default, delegate: delegate, delegateQueue: nil)
 ```
 
-为需要 pinning 的后端使用专用 Session。没有配置 pin 的 Host 由 evaluator 保持系统默认处理。轮换期间至少保留当前和下一张证书的 pin。
+为需要 pinning 的后端使用专用 Session。内置 evaluator 对没有配置 pin 的 Host 返回 `true`，因此必须为该 Session 可访问的每个 Host 配置 pin。轮换期间至少保留当前和下一张证书的 pin。
 
 ## 公钥哈希 Pinning
 
@@ -39,5 +39,6 @@ Pin 是 `Data` 值。应在受控的构建/发布流程中生成和验证，不�
 - 将 pinning 失败与普通传输失败分开监控。
 - 为 pin 丢失或泄露准备紧急发布流程。
 - 将 pinning 限制在确实需要它的后端专用 Session。
+- 为该 Session 可访问的每个 Host 配置 pin。
 
 Pinning 只加强传输信任的一部分，不能替代 HTTPS、安全 Token 存储、请求授权、输入校验或隐私审查。

@@ -34,4 +34,4 @@
 - Transport 组合缓存、熔断等传输机制。
 - App 自己决定哪些数据可以离线保存，以及如何向用户显示错误。
 
-所有文档基于 Swift 6 和包的最低平台版本：iOS 17、macOS 14、tvOS 17、watchOS 10。
+所有文档基于 Swift 6.1 和包的最低平台版本：iOS 17、macOS 14、tvOS 17、watchOS 10。

@@ -24,7 +24,7 @@ final class APIClient: SharedNetworkClient, @unchecked Sendable {
     private let bearerAuth = RefreshingAuthInterceptor(provider: TokenStore.shared)
 
     lazy var defaultProfile = NetworkClientProfile(
-        interceptors: [CommonHeadersInterceptor(), bearerAuth],
+        interceptors: [RequestIDInterceptor(), bearerAuth],
         authentication: bearerAuth,
         configuration: NetworkConfiguration(
             timeoutInterval: 15,
@@ -33,7 +33,7 @@ final class APIClient: SharedNetworkClient, @unchecked Sendable {
     )
 
     let authProfile = NetworkClientProfile(
-        interceptors: [APIKeyInterceptor()],
+        interceptors: [RequestIDInterceptor()],
         configuration: NetworkConfiguration(timeoutInterval: 10)
     )
 }

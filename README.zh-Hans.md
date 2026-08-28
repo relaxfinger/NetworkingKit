@@ -19,7 +19,7 @@ NetworkingKit 是面向 iOS、macOS、tvOS 与 watchOS 的原生 Swift 网络库
 - macOS 14+
 - tvOS 17+
 - watchOS 10+
-- Swift 6.0+
+- Swift 6.1+
 
 ## 安装
 
@@ -33,7 +33,7 @@ https://github.com/relaxfinger/NetworkingKit.git
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/relaxfinger/NetworkingKit.git", from: "2.5.0")
+    .package(url: "https://github.com/relaxfinger/NetworkingKit.git", from: "2.5.1")
 ]
 ```
 
@@ -55,7 +55,7 @@ final class AccountAPIClient: SharedNetworkClient, @unchecked Sendable {
     let baseURL = URL(string: "https://api.example.com")!
     let session: URLSession
     let defaultProfile = NetworkClientProfile(
-        interceptors: [CommonHeadersInterceptor()],
+        interceptors: [RequestIDInterceptor()],
         configuration: NetworkConfiguration(
             timeoutInterval: 15,
             retryPolicy: RetryPolicy(maxAttempts: 3)
